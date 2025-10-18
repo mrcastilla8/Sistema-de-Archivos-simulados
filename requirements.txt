@@ -1,0 +1,4 @@
+# opcionales (solo si usarás UI o gráficos)
+# customtkinter
+# pandas
+# matplotlib
