@@ -1,0 +1,39 @@
+# Ignorar directorios de caché de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar entorno virtual
+# Si usas venv en la raíz del proyecto
+venv/
+.venv/
+
+# Ignorar archivos específicos del IDE (VS Code en este caso)
+.vscode/
+
+# Ignorar el directorio de resultados (según tu especificación)
+results/
+
+# Ignorar el directorio de datos (si no quieres versionar los escenarios por defecto)
+# Por ahora lo mantenemos, pero si los escenarios son generados y no base, podrías agregarlo.
+# data/
+
+# Ignorar archivos de paquetes y configuración de proyectos
+*.egg-info/
+.pytest_cache/
+
+# Ignorar archivos temporales o de backup
+*~
+*.bak
+*.swp
+.DS_Store # macOS
+Thumbs.db # Windows
+
+# Opcional: Ignorar los archivos PDF generados por LaTeX
+# Si 'docs/acl_paper/main.pdf' se genera a partir de main.tex
+docs/acl_paper/*.pdf
+docs/acl_paper/*.aux
+docs/acl_paper/*.log
+docs/acl_paper/*.fls
+docs/acl_paper/*.fdb_latexmk
