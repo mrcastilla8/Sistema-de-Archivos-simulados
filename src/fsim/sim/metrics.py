@@ -3,20 +3,16 @@ from __future__ import annotations
 from typing import Dict, Any, List
 import json
 import csv
+import statistics
+import time
+
+# ======================================================
+# 1️⃣ FUNCIÓN summarize: versión básica
+# ======================================================
 
 def summarize(results: List[Dict[str, Any]]) -> Dict[str, float]:
     """
-    Calcula métricas agregadas a partir de resultados de operaciones
-    (por ejemplo, generadas por runner o simulador).
-
-    Cada elemento de 'results' puede tener:
-        {
-            "access_time_ms": float,   # tiempo de acceso por operación
-            "strategy": str,           # nombre de estrategia (opcional)
-            "space_used": int,         # bloques usados
-            "space_total": int,        # total de bloques
-            "external_frag": float,    # 0..1 (de fsm)
-        }
+    Calcula promedios básicos de rendimiento (versión resumida).
     """
     if not results:
         return {
@@ -26,7 +22,6 @@ def summarize(results: List[Dict[str, Any]]) -> Dict[str, float]:
             "fragmentation_external_pct": 0.0,
         }
 
-    # Calcular promedios
     n = len(results)
     avg_access_time = sum(r.get("access_time_ms", 0) for r in results) / n
     avg_usage = sum((r.get("space_used", 0) / max(r.get("space_total", 1), 1)) * 100 for r in results) / n
@@ -35,33 +30,103 @@ def summarize(results: List[Dict[str, Any]]) -> Dict[str, float]:
     return {
         "avg_access_time_ms": round(avg_access_time, 3),
         "space_usage_pct": round(avg_usage, 2),
-        "fragmentation_internal_pct": 0.0,  # No se simula fragmentación interna en contigua
+        "fragmentation_internal_pct": 0.0,
         "fragmentation_external_pct": round(avg_external_frag, 2),
     }
 
 
 # ======================================================
-# Clase de Métricas (para usar directamente en simulaciones)
+# 2️⃣ FUNCIÓN full_metrics_summary: versión extendida (oficial)
+# ======================================================
+
+def full_metrics_summary(results: List[Dict[str, Any]]) -> Dict[str, float]:
+    """
+    Calcula métricas completas de rendimiento según las especificaciones oficiales:
+      - Tiempo promedio de acceso
+      - Uso de espacio
+      - Fragmentación interna y externa
+      - Throughput (ops/seg)
+      - Hit/Miss ratio
+      - Uso de CPU
+      - Fairness (equidad)
+    """
+
+    if not results:
+        return {
+            "avg_access_time_ms": 0.0,
+            "space_usage_pct": 0.0,
+            "fragmentation_internal_pct": 0.0,
+            "fragmentation_external_pct": 0.0,
+            "throughput_ops_per_sec": 0.0,
+            "hit_miss_ratio": 0.0,
+            "cpu_usage_pct": 0.0,
+            "fairness_index": 0.0,
+        }
+
+    n = len(results)
+
+    # --- Tiempos de acceso y throughput ---
+    avg_access_time = sum(r.get("access_time_ms", 0) for r in results) / n
+    total_time_s = sum(r.get("elapsed_time_s", 0) for r in results)
+    throughput = n / total_time_s if total_time_s > 0 else 0.0
+
+    # --- Uso de espacio y fragmentación ---
+    avg_usage = sum((r.get("space_used", 0) / max(r.get("space_total", 1), 1)) * 100 for r in results) / n
+    avg_external_frag = sum(r.get("external_frag", 0) * 100 for r in results) / n
+    avg_internal_frag = sum(r.get("internal_frag", 0) * 100 for r in results) / n
+
+    # --- Hit/Miss ratio ---
+    total_hits = sum(r.get("hits", 0) for r in results)
+    total_misses = sum(r.get("misses", 0) for r in results)
+    hit_miss_ratio = (total_hits / (total_hits + total_misses)) * 100 if (total_hits + total_misses) > 0 else 0.0
+
+    # --- Uso de CPU (simulado o real) ---
+    cpu_time = sum(r.get("cpu_time", 0.0) for r in results)
+    total_elapsed = total_time_s if total_time_s > 0 else 1.0
+    cpu_usage_pct = (cpu_time / total_elapsed) * 100
+
+    # --- Fairness (equidad): desviación estándar de tiempos por archivo ---
+    access_times = [r.get("access_time_ms", 0) for r in results if "access_time_ms" in r]
+    fairness_index = 0.0
+    if len(access_times) > 1:
+        fairness_index = statistics.pstdev(access_times) / (sum(access_times) / len(access_times)) * 100
+
+    return {
+        "avg_access_time_ms": round(avg_access_time, 3),
+        "space_usage_pct": round(avg_usage, 2),
+        "fragmentation_internal_pct": round(avg_internal_frag, 2),
+        "fragmentation_external_pct": round(avg_external_frag, 2),
+        "throughput_ops_per_sec": round(throughput, 3),
+        "hit_miss_ratio": round(hit_miss_ratio, 2),
+        "cpu_usage_pct": round(cpu_usage_pct, 2),
+        "fairness_index": round(fairness_index, 2),
+    }
+
+
+# ======================================================
+# 3️⃣ CLASE Metrics — monitoreo en vivo
 # ======================================================
 
 class Metrics:
     def __init__(self, disk, fsm, fs):
-        """
-        disk: instancia de Disk
-        fsm: instancia de FreeSpaceManager
-        fs:  instancia de FilesystemBase (ej. ContiguousFS)
-        """
         self.disk = disk
         self.fsm = fsm
         self.fs = fs
+        self.start_time = time.perf_counter()
+        self.start_cpu = time.process_time()
 
     def compute(self) -> Dict[str, float]:
-        """Calcula métricas actuales del estado del sistema."""
+        """Calcula métricas actuales del sistema."""
         total_blocks = self.fsm.n_blocks
         used_blocks = self.fsm.used_count()
         free_blocks = self.fsm.free_count()
 
         external_frag = self.fsm.external_fragmentation_ratio() * 100
+        internal_frag = 0.0  # no hay fragmentación interna real en contigua
+
+        elapsed = time.perf_counter() - self.start_time
+        cpu_time = time.process_time() - self.start_cpu
+        cpu_usage_pct = (cpu_time / elapsed) * 100 if elapsed > 0 else 0.0
 
         return {
             "total_blocks": total_blocks,
@@ -69,26 +134,23 @@ class Metrics:
             "free_blocks": free_blocks,
             "space_usage_pct": round((used_blocks / total_blocks) * 100, 2),
             "fragmentation_external_pct": round(external_frag, 2),
-            "fragmentation_internal_pct": 0.0,
+            "fragmentation_internal_pct": round(internal_frag, 2),
             "files_stored": len(self.fs.file_table),
+            "cpu_usage_pct": round(cpu_usage_pct, 2),
         }
 
     def print_summary(self):
-        """Imprime las métricas en consola."""
         m = self.compute()
         print("\n===== MÉTRICAS DEL SISTEMA =====")
         for k, v in m.items():
             print(f"{k}: {v}")
 
     def export_json(self, path: str = "metrics.json"):
-        """Exporta las métricas a un archivo JSON."""
-        m = self.compute()
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(m, f, indent=4)
+            json.dump(self.compute(), f, indent=4)
         print(f"Métricas exportadas a {path}")
 
     def export_csv(self, path: str = "metrics.csv"):
-        """Exporta las métricas a un archivo CSV."""
         m = self.compute()
         with open(path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
@@ -97,24 +159,3 @@ class Metrics:
                 writer.writerow([k, v])
         print(f"Métricas exportadas a {path}")
 
-
-# ======================================================
-# 🔧 PRUEBA RÁPIDA (solo se ejecuta si corres este archivo directamente)
-# ======================================================
-if __name__ == "__main__":
-    from ..core.disk import Disk
-    from ..core.free_space import FreeSpaceManager
-    from ..fs_strategies.contiguous import ContiguousFS
-
-    disk = Disk(n_blocks=10, block_size=8)
-    fsm = FreeSpaceManager(n_blocks=10)
-    fs = ContiguousFS(disk, fsm)
-
-    fs.create("A.txt", 3)
-    fs.create("B.txt", 2)
-    fs.delete("A.txt")
-
-    metrics = Metrics(disk, fsm, fs)
-    metrics.print_summary()
-    metrics.export_json()
-    metrics.export_csv()
