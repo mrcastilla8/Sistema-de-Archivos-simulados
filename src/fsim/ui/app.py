@@ -2,19 +2,32 @@
 import customtkinter as ctk
 from .main_view import MainView
 
+# Paleta de colores definida por el usuario
+PALETTE = {
+    "app_bg": "#320A6B",        # Fondo más oscuro
+    "frame_bg": "#065084",      # Fondo de frames/sidebar
+    "button": "#0F828C",        # Color de botones
+    "button_hover": "#78B9B5",  # Hover y acentos
+    "text_light": "#78B9B5",    # Texto principal
+    "text_on_button": "#FFFFFF" # Texto sobre botones
+}
+
 def main():
     """
     Punto de entrada principal para la aplicación de UI (opcional).
     """
     try:
-        ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
-
+        ctk.set_appearance_mode("dark") # Mantiene el cromo oscuro (close, min, max)
+        
         app = ctk.CTk()
         app.title("FSim - Simulador de Sistemas de Archivos")
         app.geometry("1100x700")
+        
+        # Aplicar color de fondo a la ventana principal
+        app.configure(fg_color=PALETTE["app_bg"])
 
-        main_view = MainView(master=app)
+        # Pasamos la paleta a la vista principal
+        main_view = MainView(master=app, palette=PALETTE)
         main_view.pack(fill="both", expand=True, padx=10, pady=10)
 
         app.mainloop()
@@ -30,7 +43,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Esto permite correr la UI directamente para pruebas
-    # (asumiendo que estás en el directorio raíz y corres con python -m src.fsim.ui.app)
-    # El método preferido es a través de un script de entrada
     main()
