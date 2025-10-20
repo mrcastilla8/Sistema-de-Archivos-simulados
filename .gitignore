@@ -37,3 +37,5 @@ docs/acl_paper/*.aux
 docs/acl_paper/*.log
 docs/acl_paper/*.fls
 docs/acl_paper/*.fdb_latexmk
+
+results/
