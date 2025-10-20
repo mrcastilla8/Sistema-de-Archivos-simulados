@@ -1,45 +1,36 @@
 # Owner: Dev 2
 from __future__ import annotations
-from typing import Iterable, List, Sequence, Tuple, Optional
+# MODIFICADO: Añadir Callable y List
+from typing import Iterable, List, Sequence, Tuple, Optional, Callable 
 
 
 class FreeSpaceManager:
     """
     Gestor de espacio libre basado en un bitmap.
-
-    Estado:
-      - n_blocks (int)  : cantidad total de bloques
-      - bitmap (list[int]): 0 = libre, 1 = ocupado
-
-    Contrato mínimo (usado por estrategias):
-      - allocate(n: int, contiguous: bool = False) -> List[int]
-      - free(block_list: List[int]) -> None
-
-    Política de asignación:
-      - contiguous = False → first-fit no contiguo: toma los primeros 'n' libres.
-      - contiguous = True  → first-fit contiguo: busca el primer hueco contiguo de tamaño 'n'.
-
-    Errores:
-      - ValueError en parámetros inválidos (n <= 0, bloque fuera de rango, duplicados en free).
-      - MemoryError si no hay bloques suficientes.
-      - IndexError si se intenta liberar un índice fuera de rango.
-
-    Métricas incluidas (opcionales):
-      - used_count(), free_count(), occupancy_pct()
-      - free_runs(), largest_free_run_size()
-      - external_fragmentation_ratio() → 1 - (largest_run / total_free) cuando total_free > 0
+    ...
     """
 
     # ---------------------------------------------------------------------
     # Construcción
     # ---------------------------------------------------------------------
-    def __init__(self, n_blocks: int, *, preoccupied: Optional[Sequence[int]] = None) -> None:
+    # MODIFICADO: Añadir on_bitmap_update al constructor
+    def __init__(
+        self, 
+        n_blocks: int, 
+        *, 
+        preoccupied: Optional[Sequence[int]] = None,
+        on_bitmap_update: Optional[Callable[[List[int]], None]] = None
+    ) -> None:
+    # --- FIN MODIFICACIÓN ---
         if n_blocks <= 0:
             raise ValueError("n_blocks debe ser > 0")
         self.n_blocks: int = int(n_blocks)
         self.bitmap: List[int] = [0] * self.n_blocks  # 0 libre, 1 ocupado
+        
+        # MODIFICADO: Guardar el callback
+        self.on_bitmap_update = on_bitmap_update
+        # --- FIN MODIFICACIÓN ---
 
-        # Permite marcar algunos bloques como ocupados al inicio (p. ej., superbloque/índice)
         if preoccupied:
             self._check_indices(preoccupied)
             for i in preoccupied:
@@ -51,20 +42,13 @@ class FreeSpaceManager:
     def allocate(self, n: int, contiguous: bool = False) -> List[int]:
         """
         Reserva 'n' bloques y devuelve sus índices físicos.
-
-        contiguous = False:
-            - Devuelve cualquier conjunto de 'n' bloques libres (first-fit no contiguo).
-
-        contiguous = True:
-            - Busca el primer run contiguo de longitud >= n (first-fit contiguo) y lo reserva.
-
-        Errores:
-          - ValueError si n <= 0.
-          - MemoryError si no hay espacio suficiente (o contiguo si contiguous=True).
+        ...
         """
         if n <= 0:
             raise ValueError("n debe ser > 0")
 
+        indices: List[int] = [] # MODIFICADO: Mover la declaración aquí
+        
         if contiguous:
             run = self._find_first_fit_run(n)
             if run is None:
@@ -73,10 +57,8 @@ class FreeSpaceManager:
             indices = list(range(start, start + n))
             for i in indices:
                 self._set_used(i)
-            return indices
         else:
             # No contiguo: tomamos los primeros 'n' libres
-            indices: List[int] = []
             for i, bit in enumerate(self.bitmap):
                 if bit == 0:
                     indices.append(i)
@@ -86,30 +68,26 @@ class FreeSpaceManager:
                 raise MemoryError("No hay bloques libres suficientes")
             for i in indices:
                 self._set_used(i)
-            return indices
+        
+        # MODIFICADO: Llamar al callback si existe
+        if self.on_bitmap_update:
+            self.on_bitmap_update(self.bitmap)
+        # --- FIN MODIFICACIÓN ---
+            
+        return indices
 
     def free(self, block_list: List[int]) -> None:
         """
         Libera todos los bloques en 'block_list'.
-
-        Reglas:
-          - Deben ser índices válidos (0..n_blocks-1).
-          - No se permiten duplicados dentro de 'block_list'.
-          - Si un bloque ya está libre, se considera error (para evitar dobles liberaciones silenciosas).
-
-        Errores:
-          - IndexError si algún índice está fuera de rango.
-          - ValueError si hay duplicados o si algún bloque ya está libre.
+        ...
         """
         if not block_list:
             return
         self._check_indices(block_list)
 
-        # Duplicados en la misma operación → error (ayuda a detectar bugs)
         if len(set(block_list)) != len(block_list):
             raise ValueError("La lista de bloques a liberar contiene duplicados")
 
-        # Validación de estado actual
         for i in block_list:
             if self.bitmap[i] == 0:
                 raise ValueError(f"El bloque {i} ya está libre (posible doble liberación)")
@@ -117,6 +95,12 @@ class FreeSpaceManager:
         for i in block_list:
             self._set_free(i)
 
+        # MODIFICADO: Llamar al callback si existe
+        if self.on_bitmap_update:
+            self.on_bitmap_update(self.bitmap)
+        # --- FIN MODIFICACIÓN ---
+
+    # ... (El resto del archivo free_space.py sigue igual) ...
     # ---------------------------------------------------------------------
     # Helpers de asignación (internos)
     # ---------------------------------------------------------------------
