@@ -1,0 +1,68 @@
+{
+  "contiguous": {
+    "avg_access_time_ms": 0.088,
+    "space_usage_pct": 47.05,
+    "fragmentation_internal_pct": 0.0,
+    "fragmentation_external_pct": 6.53,
+    "throughput_ops_per_sec": 451.663,
+    "hit_miss_ratio": 100.0,
+    "cpu_usage_pct": 33.43,
+    "fairness_index": 236.15,
+    "elapsed_ms_total": 2066.735,
+    "cpu_time_total_s": 0.671875,
+    "ops_count": 970,
+    "seeks_total_est": 0,
+    "_scenario": "seq-vs-rand",
+    "_seed": 677082,
+    "_basic": {
+      "avg_access_time_ms": 0.088,
+      "space_usage_pct": 47.05,
+      "fragmentation_internal_pct": 0.0,
+      "fragmentation_external_pct": 6.53
+    }
+  },
+  "linked": {
+    "avg_access_time_ms": 0.171,
+    "space_usage_pct": 47.05,
+    "fragmentation_internal_pct": 0.0,
+    "fragmentation_external_pct": 2.05,
+    "throughput_ops_per_sec": 426.775,
+    "hit_miss_ratio": 100.0,
+    "cpu_usage_pct": 30.9,
+    "fairness_index": 216.48,
+    "elapsed_ms_total": 2111.305,
+    "cpu_time_total_s": 0.625,
+    "ops_count": 970,
+    "seeks_total_est": 10,
+    "_scenario": "seq-vs-rand",
+    "_seed": 677082,
+    "_basic": {
+      "avg_access_time_ms": 0.171,
+      "space_usage_pct": 47.05,
+      "fragmentation_internal_pct": 0.0,
+      "fragmentation_external_pct": 2.05
+    }
+  },
+  "indexed": {
+    "avg_access_time_ms": 0.056,
+    "space_usage_pct": 19.13,
+    "fragmentation_internal_pct": 0.0,
+    "fragmentation_external_pct": 0.27,
+    "throughput_ops_per_sec": 447.164,
+    "hit_miss_ratio": 90.1,
+    "cpu_usage_pct": 22.31,
+    "fairness_index": 189.57,
+    "elapsed_ms_total": 2119.017,
+    "cpu_time_total_s": 0.46875,
+    "ops_count": 970,
+    "seeks_total_est": 6,
+    "_scenario": "seq-vs-rand",
+    "_seed": 677082,
+    "_basic": {
+      "avg_access_time_ms": 0.056,
+      "space_usage_pct": 19.13,
+      "fragmentation_internal_pct": 0.0,
+      "fragmentation_external_pct": 0.27
+    }
+  }
+}

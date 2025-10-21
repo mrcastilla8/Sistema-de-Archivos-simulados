@@ -12,9 +12,6 @@ venv/
 # Ignorar archivos específicos del IDE (VS Code en este caso)
 .vscode/
 
-# Ignorar el directorio de resultados (según tu especificación)
-results/
-
 # Ignorar el directorio de datos (si no quieres versionar los escenarios por defecto)
 # Por ahora lo mantenemos, pero si los escenarios son generados y no base, podrías agregarlo.
 # data/
