@@ -189,6 +189,8 @@ def run_simulation(
         summary_ext["cpu_time_total_s"] = round(total_cpu_s, 6)
         summary_ext["ops_count"] = sum(1 for r in results if r.get("operation") not in ("TOTAL", None))
         summary_ext["seeks_total_est"] = int(sum(r["seeks_est"] for r in results if r.get("operation") != "TOTAL"))
+        summary_ext["_scenario"] = scenario or "overrides-only"
+        summary_ext["_seed"] = seed
         summaries[s] = { **summary_ext, "_basic": summary_basic, }
         final_bitmaps[s] = fsm.snapshot_bitmap()
 
