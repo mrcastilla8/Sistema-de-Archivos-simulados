@@ -59,7 +59,8 @@ def _snapshot_state(fsm: FreeSpaceManager) -> Dict[str, float]:
     return {
         "space_used": float(used),
         "space_total": float(total),
-        "external_frag": float(ext_frag),
+        "space_usage_pct": float(usage_pct),   # añadido para comodidad en gráficos
+        "external_frag": float(ext_frag),      # fracción [0..1]
         "internal_frag": 0.0,
     }
 
@@ -72,34 +73,46 @@ def run_simulation(
     overrides: Dict[str, Any],
     out: str | None = None,
     on_bitmap_update: Optional[Callable[[str, List[int]], None]] = None,
-    # --- MODIFICACIÓN: Añadir parámetro de freno ---
-    ui_slowdown_ms: Optional[int] = None # Milisegundos de pausa por operación
-    # --- FIN MODIFICACIÓN ---
+    ui_slowdown_ms: Optional[int] = None,  # Milisegundos de pausa por operación (UI)
+    # ======== NUEVO: soporte a archivos manuales =========
+    user_files: Optional[List[Dict[str, Any]]] = None,
+    respect_user_files_only: bool = False,
+    # =====================================================
 ) -> Tuple[Dict[str, Any], Dict[str, List[int]]]:
     """
-    Ejecuta la simulación...
+    Ejecuta la simulación y devuelve:
+      - summaries: dict por estrategia con métricas agregadas y, además:
+          * files_manifest: lista de archivos con estado final y contadores
+          * op_traces: lista de trazas por operación (para gráficos de UI)
+      - final_bitmaps: bitmap final por estrategia (para UI)
     """
     if strategy_name not in STRATEGIES and strategy_name != "all":
         raise KeyError(f"Estrategia inválida: {strategy_name}")
 
     cfg = build_config(scenario, scenarios_path, overrides)
-    ops = generate_workload(cfg, seed=seed)
+
+    # Pasar parámetros nuevos a generate_workload (retrocompatible)
+    ops = generate_workload(
+        cfg,
+        seed=seed,
+        user_files=user_files,
+        respect_user_files_only=respect_user_files_only,
+    )
 
     strategies = list(STRATEGIES.keys()) if strategy_name == "all" else [strategy_name]
     summaries: Dict[str, Dict[str, Any]] = {}
     final_bitmaps: Dict[str, List[int]] = {}
 
-    # --- MODIFICACIÓN: Convertir ms a segundos ---
     sleep_duration_s = 0.0
     if ui_slowdown_ms and ui_slowdown_ms > 0:
         sleep_duration_s = ui_slowdown_ms / 1000.0
-    # --- FIN MODIFICACIÓN ---
 
     for s in strategies:
         disk_size = cfg.get("disk_size", 50000)
         block_size = cfg.get("block_size", 4096)
-        
-        max_blocks_for_ui = 50000 
+
+        # Limite amistoso para UI (evitar renders enormes)
+        max_blocks_for_ui = 50000
         if disk_size > max_blocks_for_ui:
             disk_size = max_blocks_for_ui
 
@@ -116,7 +129,7 @@ def run_simulation(
             fsm_callback = create_callback(s)
 
         fsm = FreeSpaceManager(
-            disk.n_blocks, 
+            disk.n_blocks,
             on_bitmap_update=fsm_callback
         )
 
@@ -126,15 +139,66 @@ def run_simulation(
         fs_class = STRATEGIES[s]
         fs = fs_class(disk, fsm, on_event=on_event)
 
+        # ====== NUEVO: estructuras para manifest y trazas ======
+        # manifest: name -> info
+        files_manifest_map: Dict[str, Dict[str, Any]] = {}
+        # trazas por operación (para UI)
+        op_traces: List[Dict[str, Any]] = []
+        # =======================================================
+
         sim_start_wall = time.perf_counter()
         sim_start_cpu = time.process_time()
 
-        for op in ops:
+        for op_idx, op in enumerate(ops):
             event_acc.clear()
             op_name = op.get("op")
             t0_wall = time.perf_counter()
             t0_cpu = time.process_time()
             hit, miss = 1, 0
+
+            # ====== Actualización de manifest previa/según op ======
+            # Para create, registrar el archivo con su tamaño
+            if op_name == "create":
+                fname = op["name"]
+                fsize = int(op.get("size_blocks", 0) or 0)
+                if fsize <= 0:
+                    # fallback defensivo (no debería ocurrir)
+                    fsize = 1
+                if fname not in files_manifest_map:
+                    files_manifest_map[fname] = {
+                        "name": fname,
+                        "size_blocks": fsize,
+                        "created_at": op_idx,
+                        "deleted_at": None,
+                        "alive": True,          # se recalcula al final, pero útil para UI en vivo
+                        "read_ops": 0,
+                        "write_ops": 0,
+                    }
+                else:
+                    # si llega un create repetido con el mismo nombre: lo tratamos como recreate
+                    rec = files_manifest_map[fname]
+                    rec["size_blocks"] = fsize
+                    rec["created_at"] = op_idx
+                    rec["deleted_at"] = None
+                    rec["alive"] = True
+
+            # Para read/write, incrementar contadores si el archivo existe en manifest
+            elif op_name == "read":
+                fname = op.get("name")
+                if fname in files_manifest_map:
+                    files_manifest_map[fname]["read_ops"] += 1
+            elif op_name == "write":
+                fname = op.get("name")
+                if fname in files_manifest_map:
+                    files_manifest_map[fname]["write_ops"] += 1
+
+            # Para delete, marcar deleted_at
+            elif op_name == "delete":
+                fname = op.get("name")
+                if fname in files_manifest_map and files_manifest_map[fname].get("deleted_at") is None:
+                    files_manifest_map[fname]["deleted_at"] = op_idx
+                    files_manifest_map[fname]["alive"] = False
+            # ========================================================
 
             try:
                 if op_name == "create":
@@ -153,12 +217,12 @@ def run_simulation(
             op_elapsed_ms = (time.perf_counter() - t0_wall) * 1000.0
             op_cpu_s = (time.process_time() - t0_cpu)
             snap = _snapshot_state(fsm)
+            t_wall_since_start = time.perf_counter() - sim_start_wall  # para throughput/plots
 
-            # --- MODIFICACIÓN: Pausar el hilo de simulación ---
             if sleep_duration_s > 0:
                 time.sleep(sleep_duration_s)
-            # --- FIN MODIFICACIÓN ---
 
+            # Resultado por operación (para resúmenes agregados)
             result: Dict[str, Any] = {
                 "strategy": s, "operation": op_name,
                 "access_time_ms": float(op_elapsed_ms),
@@ -166,11 +230,33 @@ def run_simulation(
                 "cpu_time": float(op_cpu_s), "hits": hit, "misses": miss,
                 "seeks_est": int(event_acc.get("seeks", 0)),
                 "blocks_touched": int(event_acc.get("blocks_touched", 0)),
-                **snap,
+                "space_used": snap["space_used"],
+                "space_total": snap["space_total"],
+                "external_frag": snap["external_frag"],
+                "internal_frag": snap["internal_frag"],
             }
             results.append(result)
 
-        # ... (resto del runner.py sin cambios) ...
+            # ====== NUEVO: traza por operación (para UI) ======
+            trace_item = {
+                "op_index": op_idx,
+                "operation": op_name,
+                "name": op.get("name"),
+                "size_blocks": op.get("size_blocks", 0),
+                "offset": op.get("offset", 0),
+                "n_blocks": op.get("n_blocks", 0),
+                "access_mode": op.get("access_mode", "seq"),
+                "access_time_ms": float(op_elapsed_ms),
+                "t_wall_from_start_s": float(t_wall_since_start),
+                "external_frag_pct": float(snap["external_frag"] * 100.0),
+                "space_usage_pct": float(snap["space_usage_pct"]),
+                "seeks_est": int(event_acc.get("seeks", 0)),
+                "blocks_touched": int(event_acc.get("blocks_touched", 0)),
+            }
+            op_traces.append(trace_item)
+            # ===================================================
+
+        # Cierre de simulación (agregados globales)
         total_elapsed_s = time.perf_counter() - sim_start_wall
         total_cpu_s = time.process_time() - sim_start_cpu
         results.append({
@@ -183,6 +269,12 @@ def run_simulation(
             "blocks_touched": sum(r["blocks_touched"] for r in results if r.get("operation") != "TOTAL"),
             **_snapshot_state(fsm),
         })
+
+        # Recalcular 'alive' por consistencia final
+        for rec in files_manifest_map.values():
+            rec["alive"] = rec.get("deleted_at") is None
+
+        # Agregar métricas agregadas
         summary_ext = full_metrics_summary(results)
         summary_basic = summarize(results)
         summary_ext["elapsed_ms_total"] = round(total_elapsed_s * 1000.0, 3)
@@ -191,9 +283,17 @@ def run_simulation(
         summary_ext["seeks_total_est"] = int(sum(r["seeks_est"] for r in results if r.get("operation") != "TOTAL"))
         summary_ext["_scenario"] = scenario or "overrides-only"
         summary_ext["_seed"] = seed
-        summaries[s] = { **summary_ext, "_basic": summary_basic, }
+
+        # ===== NUEVO: adjuntar manifest y trazas =====
+        files_manifest_list = sorted(files_manifest_map.values(), key=lambda r: r["name"])
+        summary_ext["files_manifest"] = files_manifest_list
+        summary_ext["op_traces"] = op_traces
+        # =============================================
+
+        summaries[s] = { **summary_ext, "_basic": summary_basic }
         final_bitmaps[s] = fsm.snapshot_bitmap()
 
+    # Persistencia (opcional)
     if out:
         p = Path(out)
         p.parent.mkdir(parents=True, exist_ok=True)

@@ -1,7 +1,7 @@
 # Owner: Dev 1
 from __future__ import annotations
 import random
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional, Set
 
 # =============================================================================
 # Generador de workloads realista y reproducible
@@ -35,6 +35,17 @@ def _ensure_min_ops_weights(delete_rate: float) -> List[float]:
 def _new_name(kind: str, idx: int) -> str:
     """Construye un nombre único determinista."""
     return f"{kind}_{idx:06d}"  # zero-pad para orden natural
+
+def _next_unique_name(kind: str, counter: int, existing: Set[str]) -> Tuple[str, int]:
+    """
+    Genera el siguiente nombre único (sin colisionar con 'existing')
+    y devuelve (name, next_counter).
+    """
+    while True:
+        name = _new_name(kind, counter)
+        counter += 1
+        if name not in existing:
+            return name, counter
 
 def _pick_existing(rng: random.Random, names: List[str]) -> str | None:
     """Elige un archivo existente al azar (o None si no hay)."""
@@ -84,7 +95,13 @@ def _compute_offset_and_len(
 
 # -----------------------------------------------------------------------------
 
-def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict[str, Any]]:
+def generate_workload(
+    cfg: Dict[str, Any],
+    seed: int | None = None,
+    *,
+    user_files: Optional[List[Dict[str, Any]]] = None,
+    respect_user_files_only: bool = False,
+) -> List[Dict[str, Any]]:
     """
     Genera una lista de operaciones realista para el simulador.
 
@@ -96,8 +113,18 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
       - delete_rate (0..1), ops (int)
       - (opcional) max_io_blocks (int): límite superior de bloques por op de IO (default 8)
 
+    Parámetros nuevos:
+      - user_files: lista opcional de archivos manuales a poblar inicialmente.
+          Formato por elemento: {'name': str, 'size_blocks': int (>0)}
+      - respect_user_files_only: si True, NO se genera población inicial aleatoria
+          (n_files_small/large se ignoran). El resto del flujo (create/delete/read/write)
+          permanece igual (es decir, puede haber creates dinámicos más adelante).
+
     Estrategia:
-      1) Población inicial: crea n_files_small + n_files_large con tamaños en sus rangos.
+      1) Población inicial:
+         - Si user_files viene: se emiten 'create' para cada archivo.
+         - Si respect_user_files_only es False: además, se crean archivos según
+           n_files_small/n_files_large.
       2) Flujo de 'ops' operaciones: mezcla create/delete/read/write según pesos
          derivados de delete_rate, garantizando operaciones válidas (p. ej., no leer si no hay archivos).
       3) Para 'seq', mantiene un cursor por archivo; para 'rand', elige offset al azar.
@@ -115,29 +142,69 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
     delete_rate: float = float(cfg.get("delete_rate", 0.1))
     max_io_blocks: int = int(cfg.get("max_io_blocks", 8))
 
-    # Estado vivo de archivos: nombre -> {size, kind, cursor}
+    # Estado vivo de archivos: nombre -> {size, cursor}
     files: Dict[str, Dict[str, int]] = {}
     live_names: List[str] = []  # para sampling rápido
+    existing_names: Set[str] = set()
 
-    # Contadores para nombres únicos
+    # Contadores para nombres únicos (evitar colisiones con user_files)
     counter_small = 0
     counter_large = 0
 
-    # 1) Población inicial
-    for _ in range(n_small):
-        name = _new_name("small", counter_small); counter_small += 1
-        size = _rand_size(rng, small_rng)
-        files[name] = {"size": size, "cursor": 0}
-        live_names.append(name)
-        ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
-    for _ in range(n_large):
-        name = _new_name("large", counter_large); counter_large += 1
-        size = _rand_size(rng, large_rng)
-        files[name] = {"size": size, "cursor": 0}
-        live_names.append(name)
-        ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
+    # -------------------------------------------------------------------------
+    # 1) Población inicial desde user_files (si se proporciona)
+    # -------------------------------------------------------------------------
+    if user_files:
+        # Validación y alta
+        for idx, uf in enumerate(user_files):
+            if not isinstance(uf, dict):
+                raise ValueError(f"user_files[{idx}] debe ser dict con 'name' y 'size_blocks'")
+            name = uf.get("name")
+            size = uf.get("size_blocks")
+            if not isinstance(name, str) or not name:
+                raise ValueError(f"user_files[{idx}]: 'name' debe ser str no vacío")
+            if not isinstance(size, int) or size <= 0:
+                raise ValueError(f"user_files[{idx}]: 'size_blocks' debe ser int > 0")
+            if name in existing_names:
+                raise ValueError(f"user_files: nombre duplicado: '{name}'")
+            # Alta
+            files[name] = {"size": size, "cursor": 0}
+            live_names.append(name)
+            existing_names.add(name)
+            ops.append({
+                "op": "create",
+                "name": name,
+                "size_blocks": size,
+                "offset": 0,
+                "n_blocks": 0,
+                "access_mode": "seq",
+            })
 
+    # -------------------------------------------------------------------------
+    # 1b) Población inicial aleatoria (si NO es solo-manuales)
+    # -------------------------------------------------------------------------
+    if not respect_user_files_only:
+        # Genera pequeños
+        for _ in range(n_small):
+            # nombre único que no colisione con user_files
+            name, counter_small = _next_unique_name("small", counter_small, existing_names)
+            size = _rand_size(rng, small_rng)
+            files[name] = {"size": size, "cursor": 0}
+            live_names.append(name)
+            existing_names.add(name)
+            ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
+        # Genera grandes
+        for _ in range(n_large):
+            name, counter_large = _next_unique_name("large", counter_large, existing_names)
+            size = _rand_size(rng, large_rng)
+            files[name] = {"size": size, "cursor": 0}
+            live_names.append(name)
+            existing_names.add(name)
+            ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
+
+    # -------------------------------------------------------------------------
     # 2) Flujo principal de operaciones
+    # -------------------------------------------------------------------------
     weights = _ensure_min_ops_weights(delete_rate)
     kinds_for_create = ["small", "large"]
     kind_probs = [0.75, 0.25]  # preferir archivos pequeños en creaciones dinámicas
@@ -152,14 +219,15 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
         if chosen == "create":
             kind = rng.choices(kinds_for_create, weights=kind_probs, k=1)[0]
             if kind == "small":
-                name = _new_name("small", counter_small); counter_small += 1
+                name, counter_small = _next_unique_name("small", counter_small, existing_names)
                 size = _rand_size(rng, small_rng)
             else:
-                name = _new_name("large", counter_large); counter_large += 1
+                name, counter_large = _next_unique_name("large", counter_large, existing_names)
                 size = _rand_size(rng, large_rng)
 
             files[name] = {"size": size, "cursor": 0}
             live_names.append(name)
+            existing_names.add(name)
 
             ops.append({
                 "op": "create",
@@ -177,13 +245,14 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
                 # degradar a create para no generar operación inválida
                 kind = rng.choices(kinds_for_create, weights=kind_probs, k=1)[0]
                 if kind == "small":
-                    name = _new_name("small", counter_small); counter_small += 1
+                    name, counter_small = _next_unique_name("small", counter_small, existing_names)
                     size = _rand_size(rng, small_rng)
                 else:
-                    name = _new_name("large", counter_large); counter_large += 1
+                    name, counter_large = _next_unique_name("large", counter_large, existing_names)
                     size = _rand_size(rng, large_rng)
                 files[name] = {"size": size, "cursor": 0}
                 live_names.append(name)
+                existing_names.add(name)
                 ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
             else:
                 ops.append({
@@ -196,6 +265,7 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
                 })
                 # actualizar estado vivo
                 live_names.remove(victim)
+                existing_names.discard(victim)
                 files.pop(victim, None)
 
         elif chosen in ("read", "write"):
@@ -204,13 +274,14 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
                 # degradar a create si no hay archivos
                 kind = rng.choices(kinds_for_create, weights=kind_probs, k=1)[0]
                 if kind == "small":
-                    name = _new_name("small", counter_small); counter_small += 1
+                    name, counter_small = _next_unique_name("small", counter_small, existing_names)
                     size = _rand_size(rng, small_rng)
                 else:
-                    name = _new_name("large", counter_large); counter_large += 1
+                    name, counter_large = _next_unique_name("large", counter_large, existing_names)
                     size = _rand_size(rng, large_rng)
                 files[name] = {"size": size, "cursor": 0}
                 live_names.append(name)
+                existing_names.add(name)
                 ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
                 continue
 
@@ -234,15 +305,11 @@ def generate_workload(cfg: Dict[str, Any], seed: int | None = None) -> List[Dict
 
         else:
             # fallback teórico (no debería ocurrir)
-            kind = rng.choices(kinds_for_create, weights=kind_probs, k=1)[0]
-            if kind == "small":
-                name = _new_name("small", counter_small); counter_small += 1
-                size = _rand_size(rng, small_rng)
-            else:
-                name = _new_name("large", counter_large); counter_large += 1
-                size = _rand_size(rng, large_rng)
+            name, counter_small = _next_unique_name("small", counter_small, existing_names)
+            size = _rand_size(rng, small_rng)
             files[name] = {"size": size, "cursor": 0}
             live_names.append(name)
+            existing_names.add(name)
             ops.append({"op": "create", "name": name, "size_blocks": size, "offset": 0, "n_blocks": 0, "access_mode": "seq"})
 
     return ops
