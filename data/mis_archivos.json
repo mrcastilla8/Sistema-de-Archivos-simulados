@@ -1,0 +1,22 @@
+[
+  {
+    "name": "archivo1.txt",
+    "size_blocks": 4
+  },
+  {
+    "name": "imagen.png",
+    "size_blocks": 12
+  },
+  {
+    "name": "video.mp4",
+    "size_blocks": 230
+  },
+  {
+    "name": "documento.pdf",
+    "size_blocks": 9
+  },
+  {
+    "name": "script.py",
+    "size_blocks": 3
+  }
+]
