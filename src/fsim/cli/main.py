@@ -6,7 +6,6 @@ import csv
 from pathlib import Path 
 from typing import Dict ,Any ,List ,Callable ,Optional ,Tuple 
 
-
 try :
     from ..sim .runner import run_simulation ,STRATEGIES 
     from ..sim .scenario_definitions import available_scenarios 
@@ -14,12 +13,9 @@ except ImportError :
     print ("Error: No se pudieron importar los módulos. Asegúrate de ejecutar como 'python -m src.fsim'")
     sys .exit (1 )
 
-
-
 SCENARIOS_JSON_PATH ="data/scenarios.json"
 RESULTS_DIR =Path ("results")
 MANIFEST_PREVIEW_COUNT =15 
-
 
 STRATEGY_NAMES_ES ={
 "contiguous":"Asignación Contigua",
@@ -38,34 +34,26 @@ SCENARIO_NAMES_ES ={
 
 
 def clear_screen ():
-    """Limpia la pantalla de la terminal (multiplataforma)."""
     if platform .system ()=="Windows":
         os .system ("cls")
     else :
         os .system ("clear")
 
 def print_header (title :str ):
-    """Imprime un encabezado visualmente atractivo."""
     print ("\n"+"="*60 )
     print (f"    {title .upper ()}")
     print ("="*60 )
 
 def print_error (message :str ):
-    """Imprime un mensaje de error estandarizado."""
     print (f"\n[ERROR]: {message }")
 
 def print_success (message :str ):
-    """Imprime un mensaje de éxito estandarizado."""
     print (f"\n[EXITO]: {message }")
 
 def print_results (
 summaries :Dict [str ,Any ],
 bitmaps :Dict [str ,List [int ]]
 ):
-    """
-    Imprime una tabla formateada con el resumen de métricas
-    Y el nuevo manifiesto de archivos (SOLICITUD 2).
-    """
     print ("\n"+"---"*20 )
     print ("    RESUMEN DE METRICAS DE LA SIMULACION")
     print ("---"*20 )
@@ -122,7 +110,6 @@ bitmaps :Dict [str ,List [int ]]
 
 
 def _capture_manual_files_interactive ()->Optional [List [Dict [str ,Any ]]]:
-    """Captura interactiva de archivos manuales."""
     clear_screen ()
     print_header ("Ingreso Interactivo de Archivos")
     user_files =[]
@@ -148,7 +135,6 @@ def _capture_manual_files_interactive ()->Optional [List [Dict [str ,Any ]]]:
     return user_files if user_files else None 
 
 def _capture_manual_files_import ()->Optional [List [Dict [str ,Any ]]]:
-    """Captura de archivos manuales desde un archivo CSV o JSON."""
     clear_screen ()
     print_header ("Importar Archivos desde CSV/JSON")
     path_str =input ("  Ruta al archivo (ej: 'data/mis_archivos.json' o 'data/mis_archivos.csv'): ").strip ()
@@ -211,10 +197,6 @@ def _capture_manual_files_import ()->Optional [List [Dict [str ,Any ]]]:
     return user_files if user_files else None 
 
 def _configure_workload ()->Optional [Tuple [Optional [List [Dict [str ,Any ]]],bool ,Optional [int ]]]:
-    """
-    Paso interactivo para configurar la carga de trabajo (Aleatoria vs Manual).
-    Devuelve: (user_files, respect_user_files_only, seed) o None si se aborta.
-    """
     clear_screen ()
     print_header ("Configuracion de Carga de Trabajo")
     print ("  1) Aleatorios")
@@ -277,7 +259,6 @@ def _configure_workload ()->Optional [Tuple [Optional [List [Dict [str ,Any ]]],
 
 
 def do_list_strategies ():
-    """Opción 1: Muestra las estrategias disponibles."""
     print_header ("Estrategias Soportadas")
     print ("Estas son las estrategias que el Runner puede ejecutar:")
     for key in STRATEGIES .keys ():
@@ -285,7 +266,6 @@ def do_list_strategies ():
         print (f"  - {key } ({spanish_name })")
 
 def do_list_scenarios ():
-    """Opción 2: Muestra los escenarios disponibles."""
     print_header ("Escenarios Disponibles")
     print (f"Cargando escenarios desde {SCENARIOS_JSON_PATH }...")
     try :
@@ -301,7 +281,6 @@ def do_list_scenarios ():
         print_error (f"No se pudo cargar o leer '{SCENARIOS_JSON_PATH }': {e }")
 
 def do_run_simulation ():
-    """Opción 3: Guía al usuario para ejecutar una simulación única."""
     clear_screen ()
     print_header ("Ejecutar Simulacion Unica")
 
@@ -382,7 +361,6 @@ def do_run_simulation ():
         input ("\n... Presiona Enter para continuar ...")
 
 def do_run_sweep ():
-    """Opción 4: Ejecuta un barrido de TODAS las estrategias en UN escenario."""
     clear_screen ()
     print_header ("Ejecutar Barrido (Sweep)")
     print ("Este modo ejecutara 'TODAS' las estrategias en un solo escenario.")
@@ -444,13 +422,11 @@ def do_run_sweep ():
         input ("\n... Presiona Enter para continuar ...")
 
 def do_exit ():
-    """Opción 5: Salir del programa."""
     clear_screen ()
     print ("\nPrograma Finalizado\n")
     sys .exit ()
 
 def print_menu ():
-    """Muestra el menú principal."""
     print_header ("Simulador de Sistema de Archivos")
     print ("  1. Listar estrategias disponibles")
     print ("  2. Listar escenarios de prueba")
@@ -465,9 +441,6 @@ def print_menu ():
 
 
 def main ():
-    """
-    Función principal que ejecuta el bucle del menú interactivo.
-    """
     try :
         RESULTS_DIR .mkdir (parents =True ,exist_ok =True )
     except OSError as e :

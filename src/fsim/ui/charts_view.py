@@ -9,7 +9,7 @@ from matplotlib .backends .backend_tkagg import FigureCanvasTkAgg ,NavigationToo
 import numpy as np 
 
 class SpanishNavigationToolbar (NavigationToolbar2Tk ):
-    """NavigationToolbar con tooltips y mensajes en español."""
+
 
     toolitems =(
     ('Home','Resetear vista original','home','home'),
@@ -24,7 +24,7 @@ class SpanishNavigationToolbar (NavigationToolbar2Tk ):
     )
 
     def set_message (self ,msg ):
-        """Traduce los mensajes de estado comunes."""
+
         translations ={
         'Mouse position: ':'Posición del mouse: ',
         'Navigation: ':'Navegación: ',
@@ -68,9 +68,6 @@ TIMESERIES_PLOTS ={
 THROUGHPUT_WINDOWS =[20 ,50 ,100 ]
 
 class ChartsView (ctk .CTkFrame ):
-    """
-    Vista para mostrar gráficos de las trazas de operación (op_traces).
-    """
     def __init__ (self ,master ,palette :Dict [str ,str ],**kwargs ):
         super ().__init__ (master ,**kwargs )
         self .palette =palette 
@@ -137,7 +134,7 @@ class ChartsView (ctk .CTkFrame ):
         self ._create_placeholder_tab ("Esperando datos...")
 
     def _create_placeholder_tab (self ,text :str ):
-        """Creates a tab with a simple placeholder label."""
+
         try :
             tab =self .tab_view .add ("Info")
             tab .grid_columnconfigure (0 ,weight =1 );tab .grid_rowconfigure (0 ,weight =1 )
@@ -147,7 +144,7 @@ class ChartsView (ctk .CTkFrame ):
             print (f"Error creating placeholder tab: {e }")
 
     def _clear_tabs (self ):
-        """Removes all existing tabs."""
+
 
         tab_names =list (self .tab_view ._name_list )
         for name in tab_names :
@@ -167,7 +164,7 @@ class ChartsView (ctk .CTkFrame ):
 
 
     def _create_chart_tabs (self ):
-        """Creates the necessary tabs and embedded matplotlib figures."""
+
         self ._clear_tabs ()
         if not self ._current_traces :
             self ._create_placeholder_tab ("No hay datos de traza para esta estrategia.")
@@ -260,7 +257,6 @@ class ChartsView (ctk .CTkFrame ):
 
 
     def _plot_timeseries (self ,key :str ,ax :plt .Axes ,canvas :FigureCanvasTkAgg ):
-        """Plots a simple time series from op_traces."""
         y_label =TIMESERIES_PLOTS .get (key ,key )
         x_data =[t .get ("op_index",i )for i ,t in enumerate (self ._current_traces )]
         y_data =[t .get (key ,0 )for t in self ._current_traces ]
@@ -279,7 +275,6 @@ class ChartsView (ctk .CTkFrame ):
         canvas .draw ()
 
     def _plot_cumulative_seeks (self ,ax :plt .Axes ,canvas :FigureCanvasTkAgg ):
-        """Plots cumulative estimated seeks."""
         x_data =[t .get ("op_index",i )for i ,t in enumerate (self ._current_traces )]
         y_data_raw =[t .get ("seeks_est",0 )for t in self ._current_traces ]
         y_data_cumulative =np .cumsum (y_data_raw )
@@ -296,7 +291,6 @@ class ChartsView (ctk .CTkFrame ):
         canvas .draw ()
 
     def _plot_throughput (self ,ax :plt .Axes ,canvas :FigureCanvasTkAgg ):
-        """Plots moving average throughput."""
         try :
             window =int (self .throughput_win_var .get ())
         except :
@@ -341,7 +335,6 @@ class ChartsView (ctk .CTkFrame ):
         canvas .draw ()
 
     def _plot_latency_vs_throughput (self ,ax :plt .Axes ,canvas :FigureCanvasTkAgg ):
-        """Scatter plot of latency vs throughput (using moving averages)."""
         try :
             window =int (self .throughput_win_var .get ())
         except :
@@ -386,7 +379,6 @@ class ChartsView (ctk .CTkFrame ):
 
 
     def _redraw_charts (self ,*args ):
-        """Redraws all charts for the currently selected strategy."""
         if not self ._current_strategy or not self ._summaries_data or not self ._current_traces :
 
              return 
@@ -415,7 +407,6 @@ class ChartsView (ctk .CTkFrame ):
 
 
     def _on_strategy_change (self ,selected_strategy_display :str ):
-        """Callback when the user selects a different strategy."""
         if not self ._summaries_data :return 
 
 
@@ -440,10 +431,6 @@ class ChartsView (ctk .CTkFrame ):
 
 
     def update_charts (self ,summaries :Optional [Dict [str ,Any ]]):
-        """
-        Punto de entrada principal. Recibe los summaries completos
-        y actualiza la vista de gráficos.
-        """
         self ._summaries_data =summaries 
         self ._strategy_keys =[]
         self ._current_strategy =""

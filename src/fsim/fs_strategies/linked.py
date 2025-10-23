@@ -16,16 +16,7 @@ POINTER_SIZE_BYTES =struct .calcsize (POINTER_FORMAT )
 
 
 class LinkedFS (FilesystemBase ):
-    """
-    Implementación de un sistema de archivos con asignación enlazada (Linked Allocation).
 
-    Lógica:
-    - El directorio (self.file_table) almacena el bloque de inicio de cada archivo.
-    - Cada bloque en el disco utiliza sus primeros 'POINTER_SIZE_BYTES' bytes
-      para almacenar el índice del *siguiente* bloque.
-    - El último bloque de un archivo apunta a 'END_OF_FILE_MARKER'.
-    - El resto del bloque (block_size - POINTER_SIZE_BYTES) se usa para datos.
-    """
 
     def __init__ (
     self ,
@@ -34,10 +25,7 @@ class LinkedFS (FilesystemBase ):
     *,
     on_event :Optional [Callable [...,None ]]=None ,
     )->None :
-        """
-        Inicializa el FS. Valida que los bloques sean lo suficientemente grandes
-        para albergar, como mínimo, un puntero.
-        """
+
         super ().__init__ (disk ,free_space_manager ,on_event =on_event )
 
 
@@ -52,10 +40,7 @@ class LinkedFS (FilesystemBase ):
 
 
     def _read_pointer (self ,block_index :int )->int :
-        """
-        Lee el bloque 'block_index' del disco y extrae el puntero
-        (los primeros bytes) del siguiente bloque.
-        """
+
         data =self .disk .read_block (block_index )
         if data is None or len (data )<POINTER_SIZE_BYTES :
 
@@ -70,10 +55,7 @@ class LinkedFS (FilesystemBase ):
         return int (next_block_index )
 
     def _write_pointer (self ,block_index :int ,next_block_index :int )->None :
-        """
-        Escribe el puntero 'next_block_index' al inicio del bloque 'block_index'.
-        Preserva los datos de usuario existentes en ese bloque si los hay.
-        """
+
 
         pointer_bytes =struct .pack (POINTER_FORMAT ,next_block_index )
 
@@ -93,10 +75,7 @@ class LinkedFS (FilesystemBase ):
         self .disk .write_block (block_index ,full_block_data )
 
     def _get_all_blocks (self ,name :str )->List [int ]:
-        """
-        Recorre la cadena completa del archivo 'name' y devuelve
-        la lista de todos sus bloques físicos. Usado por delete().
-        """
+
         self ._assert_file_exists (name )
         meta =self .file_table [name ]
 
@@ -122,10 +101,7 @@ class LinkedFS (FilesystemBase ):
 
 
     def create (self ,name :str ,size_blocks :int )->None :
-        """
-        Crea un archivo 'name' de 'size_blocks', solicitando bloques
-        no contiguos al FSM y enlazándolos en el disco.
-        """
+
         self ._assert_new_file (name )
         self ._assert_positive_blocks (size_blocks )
 
@@ -159,10 +135,7 @@ class LinkedFS (FilesystemBase ):
         )
 
     def delete (self ,name :str )->None :
-        """
-        Elimina el archivo 'name', recorriendo su cadena de bloques
-        para liberarlos todos en el FSM.
-        """
+
         self ._assert_file_exists (name )
 
 
@@ -201,13 +174,7 @@ class LinkedFS (FilesystemBase ):
         self ._emit ("delete",name =name ,freed =blocks_to_free )
 
     def _resolve_range (self ,name :str ,offset :int ,n_blocks :int )->List [int ]:
-        """
-        Devuelve la lista de bloques físicos correspondientes al rango
-        lógico [offset, offset + n_blocks) del archivo 'name'.
-        
-        Esta es la operación costosa en "Linked", ya que requiere 'offset'
-        lecturas de punteros para llegar al inicio del rango.
-        """
+
         self ._assert_file_exists (name )
         meta =self .file_table [name ]
 
@@ -247,10 +214,7 @@ class LinkedFS (FilesystemBase ):
     def read (
     self ,name :str ,offset :int ,n_blocks :int ,access_mode :str ="seq"
     )->List [bytes ]:
-        """
-        Lee 'n_blocks' lógicos desde 'offset' del archivo 'name'.
-        Devuelve solo los datos de *usuario* (sin los punteros).
-        """
+
         self ._assert_file_exists (name )
         self ._assert_positive_blocks (n_blocks )
         self ._assert_non_negative (offset )
@@ -291,11 +255,7 @@ class LinkedFS (FilesystemBase ):
     n_blocks :int ,
     data :Optional [Iterable [bytes ]]=None ,
     )->None :
-        """
-        Escribe 'n_blocks' lógicos desde 'offset' en 'name'.
-        Esto sobrescribe datos de usuario, pero *preserva* los punteros.
-        Esta política no soporta crecimiento de archivo.
-        """
+
         self ._assert_file_exists (name )
         self ._assert_positive_blocks (n_blocks )
         self ._assert_non_negative (offset )

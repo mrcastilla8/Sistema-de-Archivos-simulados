@@ -1,3 +1,0 @@
-"""
-FSIM - Filesystem Simulator.
-"""

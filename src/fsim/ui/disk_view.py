@@ -9,11 +9,6 @@ BLOCK_PAD_PX =1
 COLS =170 
 
 class DiskView (ctk .CTkFrame ):
-    """
-    Vista para la visualización del bitmap del disco (En Vivo).
-    Implementa "throttling", optimización de dibujo (run-length),
-    y manejo extra-robusto de bitmaps inválidos/dimensiones cero.
-    """
     def __init__ (self ,master ,palette :Dict [str ,str ],**kwargs ):
         super ().__init__ (master ,**kwargs )
         self .palette =palette 
@@ -56,7 +51,6 @@ class DiskView (ctk .CTkFrame ):
         self ._live_canvas_strategy =""
 
     def _draw_run (self ,canvas :ctk .CTkCanvas ,start_index :int ,end_index :int ,value :int ):
-        """Helper para dibujar un 'run' (rango) de bloques."""
         color =self .COLOR_FREE if value ==0 else self .COLOR_USED 
         current_index =start_index 
         while current_index <=end_index :
@@ -93,7 +87,6 @@ class DiskView (ctk .CTkFrame ):
     strategy_name :str ,
     canvas_instance :Optional [ctk .CTkCanvas ]=None 
     )->ctk .CTkCanvas :
-        """Dibuja un bitmap en un canvas."""
 
         if not bitmap :
             num_blocks =0 
@@ -142,7 +135,6 @@ class DiskView (ctk .CTkFrame ):
         return canvas 
 
     def _create_new_canvas (self ,strategy_name :str ,canvas_width :int ,canvas_height :int )->ctk .CTkCanvas :
-        """Helper para crear el título y el canvas, asegurando tamaño > 0."""
         title_label =ctk .CTkLabel (
         self .scroll_frame ,text =f"Estrategia: {strategy_name .upper ()}",
         font =ctk .CTkFont (size =16 ,weight ="bold"),text_color =self .palette ["text_light"]
@@ -164,7 +156,6 @@ class DiskView (ctk .CTkFrame ):
 
 
     def live_update (self ,strategy_name :str ,bitmap :List [int ]):
-        """Punto de entrada llamado DESDE EL HILO DE SIMULACIÓN (vía runner)."""
         current_time_s =time .monotonic ()
         elapsed_ms =(current_time_s -self ._last_live_update_time )*1000.0 
         if elapsed_ms <self ._live_update_throttle_ms :
@@ -174,7 +165,6 @@ class DiskView (ctk .CTkFrame ):
         self .after (0 ,self ._safe_live_update ,strategy_name ,list (bitmap )if bitmap is not None else [])
 
     def _safe_live_update (self ,strategy_name :str ,bitmap :List [int ]):
-        """Esta función se ejecuta EN EL HILO PRINCIPAL de la UI."""
         try :
             if not self .winfo_exists ():return 
 
@@ -199,7 +189,6 @@ class DiskView (ctk .CTkFrame ):
 
 
     def show_final_snapshots (self ,bitmaps :Optional [Dict [str ,List [int ]]]):
-        """Punto de entrada para los resultados FINALES."""
         self ._clear_bitmaps ()
         if bitmaps is None :
             self .info_label .configure (text ="La simulación falló. No hay bitmap para mostrar.")

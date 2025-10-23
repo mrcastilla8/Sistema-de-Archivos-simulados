@@ -7,9 +7,6 @@ from .charts_view import ChartsView
 from typing import Dict ,Any ,List ,Optional 
 
 class MainView (ctk .CTkFrame ):
-    """
-    Vista principal que contiene la navegación (sidebar) y las vistas de página.
-    """
     def __init__ (self ,master ,palette :Dict [str ,str ],**kwargs ):
         super ().__init__ (master ,**kwargs )
         self .palette =palette 
@@ -98,9 +95,6 @@ class MainView (ctk .CTkFrame ):
 
 
     def on_simulation_complete (self ,results :dict ,bitmaps :Optional [Dict [str ,List [int ]]]):
-        """
-        Callback que se ejecuta cuando ScenarioView termina una simulación.
-        """
 
         self .results_view .show_results (results )
 

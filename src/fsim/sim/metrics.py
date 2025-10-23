@@ -11,9 +11,6 @@ import time
 
 
 def summarize (results :List [Dict [str ,Any ]])->Dict [str ,float ]:
-    """
-    Calcula promedios básicos de rendimiento (versión resumida).
-    """
     if not results :
         return {
         "avg_access_time_ms":0.0 ,
@@ -40,16 +37,6 @@ def summarize (results :List [Dict [str ,Any ]])->Dict [str ,float ]:
 
 
 def full_metrics_summary (results :List [Dict [str ,Any ]])->Dict [str ,float ]:
-    """
-    Calcula métricas completas de rendimiento según las especificaciones oficiales:
-      - Tiempo promedio de acceso
-      - Uso de espacio
-      - Fragmentación interna y externa
-      - Throughput (ops/seg)
-      - Hit/Miss ratio
-      - Uso de CPU
-      - Fairness (equidad)
-    """
 
     if not results :
         return {
@@ -116,7 +103,6 @@ class Metrics :
         self .start_cpu =time .process_time ()
 
     def compute (self )->Dict [str ,float ]:
-        """Calcula métricas actuales del sistema."""
         total_blocks =self .fsm .n_blocks 
         used_blocks =self .fsm .used_count ()
         free_blocks =self .fsm .free_count ()

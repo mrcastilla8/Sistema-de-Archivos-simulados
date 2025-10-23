@@ -14,24 +14,6 @@ POINTER_SIZE_BYTES =struct .calcsize (POINTER_FORMAT_CHAR )
 
 
 class IndexedFS (FilesystemBase ):
-    """
-    Estrategia de **asignación indexada (nivel único)**.
-
-    Metadata en self.file_table[name]:
-      {
-        "size_blocks": int,
-        "index_block": int,       # Bloque físico que contiene los punteros
-        # "data_blocks" NO se almacena aquí. Se lee del "index_block"
-        "overhead_blocks": 1      # 1 bloque para el índice
-      }
-
-    Lógica:
-    - `create`: Reserva 1 bloque para el índice + N bloques para datos.
-                Escribe la lista de punteros a datos en el bloque índice.
-    - `_resolve_range`: Lee el bloque índice y devuelve la porción solicitada
-                        de la tabla de punteros.
-    - `delete`: Libera el bloque índice Y todos los bloques de datos.
-    """
 
     def __init__ (
     self ,
@@ -49,9 +31,6 @@ class IndexedFS (FilesystemBase ):
 
 
     def _read_index_block (self ,index_block_idx :int ,size_blocks :int )->List [int ]:
-        """
-        Lee el bloque índice y decodifica los punteros a bloques de datos.
-        """
         data =self .disk .read_block (index_block_idx )
         if data is None :
             raise IOError (f"Corrupción: Bloque índice {index_block_idx } está vacío")
@@ -67,9 +46,6 @@ class IndexedFS (FilesystemBase ):
             raise IOError (f"Corrupción: No se pudo decodificar el bloque índice {index_block_idx }")
 
     def _write_index_block (self ,index_block_idx :int ,data_blocks :List [int ])->None :
-        """
-        Codifica la lista de punteros y la escribe en el bloque índice.
-        """
 
         format_string =f"!{len (data_blocks )}{POINTER_FORMAT_CHAR }"
 
@@ -91,9 +67,6 @@ class IndexedFS (FilesystemBase ):
 
 
     def create (self ,name :str ,size_blocks :int )->None :
-        """
-        Crea un archivo con un bloque índice que referencia 'size_blocks' bloques de datos.
-        """
         self ._assert_new_file (name )
         self ._assert_positive_blocks (size_blocks )
 
@@ -145,9 +118,6 @@ class IndexedFS (FilesystemBase ):
         )
 
     def delete (self ,name :str )->None :
-        """
-        Elimina el archivo 'name', liberando su bloque índice y todos sus bloques de datos.
-        """
         self ._assert_file_exists (name )
         meta =self .file_table [name ]
 
@@ -177,10 +147,6 @@ class IndexedFS (FilesystemBase ):
         self ._emit ("delete:done",strategy ="indexed",name =name ,freed =blocks_to_free )
 
     def _resolve_range (self ,name :str ,offset :int ,n_blocks :int )->List [int ]:
-        """
-        Devuelve la lista de índices físicos para [offset, offset+n_blocks),
-        leyendo el bloque índice y devolviendo una sub-lista.
-        """
         self ._assert_file_exists (name )
         meta =self .file_table [name ]
 
@@ -194,9 +160,6 @@ class IndexedFS (FilesystemBase ):
         return all_data_blocks [offset :offset +n_blocks ]
 
     def read (self ,name :str ,offset :int ,n_blocks :int ,access_mode :str ="seq")->List [bytes ]:
-        """
-        Lee 'n_blocks' desde 'offset' usando el bloque índice.
-        """
         self ._assert_file_exists (name )
         self ._assert_positive_blocks (n_blocks )
         self ._assert_non_negative (offset )
@@ -225,9 +188,6 @@ class IndexedFS (FilesystemBase ):
         return payloads 
 
     def write (self ,name :str ,offset :int ,n_blocks :int ,data :Iterable [bytes ]|None =None )->None :
-        """
-        Escribe 'n_blocks' desde 'offset' consultando el índice.
-        """
         self ._assert_file_exists (name )
         self ._assert_positive_blocks (n_blocks )
         self ._assert_non_negative (offset )

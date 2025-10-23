@@ -5,17 +5,7 @@ from ..core .filesystem_base import FilesystemBase
 
 
 class ContiguousFS (FilesystemBase ):
-    """
-    Estrategia de **asignación contigua**.
 
-    Metadata esperada en self.file_table[name]:
-      {
-        "size_blocks": int,
-        "start": int,        # primer bloque físico
-        "length": int,       # == size_blocks (si tamaño fijo)
-        (Opcional) "overhead_blocks": 0
-      }
-    """
 
 
 

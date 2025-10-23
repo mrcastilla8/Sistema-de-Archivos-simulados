@@ -23,10 +23,6 @@ SCENARIO_MAP_EN :Dict [str ,str ]={}
 
 
 class ScenarioView (ctk .CTkFrame ):
-    """
-    Vista para configurar y lanzar una simulación.
-    Incluye lógica para carga de archivos manuales.
-    """
 
     def __init__ (self ,
     master ,
@@ -199,7 +195,7 @@ class ScenarioView (ctk .CTkFrame ):
 
 
     def _load_scenarios_maps (self ):
-        """Carga y traduce los escenarios."""
+
         global SCENARIO_MAP_ES ,SCENARIO_MAP_EN 
         try :
             scenarios =available_scenarios ("data/scenarios.json")
@@ -217,7 +213,7 @@ class ScenarioView (ctk .CTkFrame ):
             print (f"Error cargando scenarios.json: {e }")
 
     def _on_workload_mode_change (self ,mode :str ):
-        """Muestra u oculta los paneles de Seed o Manual."""
+
         row_to_use =self .workload_panels_row 
 
 

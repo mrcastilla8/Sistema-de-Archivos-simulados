@@ -25,9 +25,6 @@ KEYS_TO_IGNORE =["_basic","_scenario","_seed","files_manifest","op_traces"]
 MANIFEST_COLUMNS ={"name":"Nombre Archivo","size_blocks":"Tamaño (Bloques)","alive":"Estado","read_ops":"Lecturas","write_ops":"Escrituras"}
 
 class ResultsView (ctk .CTkFrame ):
-    """
-    Vista para mostrar los resultados de la simulación...
-    """
     def __init__ (self ,master ,palette :Dict [str ,str ],**kwargs ):
         super ().__init__ (master ,**kwargs )
         self .palette =palette 
@@ -88,7 +85,7 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def _clear_results (self ):
-        """Limpia métricas, tabla y deshabilita botones."""
+
 
 
 
@@ -111,7 +108,7 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def _show_placeholder (self ):
-        """Muestra el mensaje inicial."""
+
         self ._clear_results ()
         label =ctk .CTkLabel (self .metrics_scroll_frame ,text ="Ejecuta una simulación...",text_color =self .palette ["text_light"])
         label .grid (row =self .metrics_current_row ,column =0 ,padx =20 ,pady =20 )
@@ -119,7 +116,7 @@ class ResultsView (ctk .CTkFrame ):
         self .manifest_label .configure (text ="Manifiesto de Archivos")
 
     def _show_error (self ,error_msg :str ):
-        """Muestra un mensaje de error estilizado."""
+
         self ._clear_results ()
         label =ctk .CTkLabel (self .metrics_scroll_frame ,text ="Error en la Simulación:",text_color ="#FF5555",font =ctk .CTkFont (size =16 ,weight ="bold"))
         label .grid (row =self .metrics_current_row ,column =0 ,padx =20 ,pady =(10 ,5 ),sticky ="w")
@@ -133,7 +130,6 @@ class ResultsView (ctk .CTkFrame ):
         self .manifest_label .configure (text ="Manifiesto de Archivos (No disponible)")
 
     def _add_metric_row (self ,master_frame ,key :str ,value :Any ):
-        """Añade una fila de métrica (Nombre: Valor) al frame de métricas."""
 
         display_name =METRIC_NAMES_ES .get (key ,key );
         if isinstance (value ,float ):display_value =f"{value :.3f}"
@@ -144,7 +140,6 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def _add_strategy_card (self ,strategy_name :str ,metrics :Dict [str ,Any ]):
-        """Añade una "tarjeta" de métricas agregadas."""
 
         title_label =ctk .CTkLabel (self .metrics_scroll_frame ,text =f"Estrategia: {strategy_name .upper ()}",font =ctk .CTkFont (size =18 ,weight ="bold"),text_color =self .palette ["text_light"]);title_label .grid (row =self .metrics_current_row ,column =0 ,padx =5 ,pady =(20 ,10 ),sticky ="w");self .metrics_current_row +=1 
         card_frame =ctk .CTkFrame (self .metrics_scroll_frame ,border_width =1 ,border_color =self .palette ["button_hover"],fg_color =self .palette ["app_bg"]);card_frame .grid (row =self .metrics_current_row ,column =0 ,sticky ="ew",padx =5 ,pady =5 );self .metrics_current_row +=1 
@@ -156,7 +151,6 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def _populate_manifest_table (self ,manifest_data :List [Dict [str ,Any ]]):
-        """Llena la tabla Treeview con los datos del manifiesto."""
 
 
         for item in self .tree .get_children ():
@@ -174,7 +168,6 @@ class ResultsView (ctk .CTkFrame ):
         self .export_csv_button .configure (state ="normal"if manifest_data else "disabled")
 
     def _export_manifest_csv (self ):
-        """Exporta los datos del manifiesto actual a un archivo CSV."""
 
         if not self ._current_manifest_data :return 
         filepath =filedialog .asksaveasfilename (title ="Guardar Manifiesto como CSV",defaultextension =".csv",filetypes =[("CSV","*.csv"),("Todos","*.*")])
@@ -193,7 +186,6 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def _export_results_json (self ):
-        """Exporta los datos de summaries (SOLO MÉTRICAS) a un archivo JSON."""
         if not self ._current_summaries_data :
             print ("No hay datos de resultados para exportar.")
 
@@ -246,9 +238,6 @@ class ResultsView (ctk .CTkFrame ):
 
 
     def show_results (self ,summaries :Optional [Dict [str ,Any ]]):
-        """
-        Punto de entrada principal. Muestra métricas, llena tabla y guarda summaries.
-        """
 
         self ._clear_results ()
         self ._current_summaries_data =summaries 

@@ -8,20 +8,13 @@ from typing import Dict ,Any ,List ,Tuple ,Optional ,Set
 
 
 def _rand_size (rng :random .Random ,rng_pair :Tuple [int ,int ])->int :
-    """Devuelve un tamaño en bloques dentro del rango [min, max]."""
     lo ,hi =rng_pair 
     return rng .randint (lo ,hi )
 
 def _choose_access_mode (rng :random .Random ,seq_prob :float )->str :
-    """Elige 'seq' o 'rand' según probabilidad de acceso secuencial."""
     return "seq"if rng .random ()<seq_prob else "rand"
 
 def _ensure_min_ops_weights (delete_rate :float )->List [float ]:
-    """
-    Devuelve pesos [create, delete, read, write] coherentes.
-    - Aumenta 'delete' en función de delete_rate para inducir fragmentación cuando se solicita.
-    - Mantiene un equilibrio razonable para que haya lecturas/escrituras útiles.
-    """
 
     w_create =0.25 
 
@@ -33,14 +26,9 @@ def _ensure_min_ops_weights (delete_rate :float )->List [float ]:
     return [w_create ,w_delete ,w_read ,w_write ]
 
 def _new_name (kind :str ,idx :int )->str :
-    """Construye un nombre único determinista."""
     return f"{kind }_{idx :06d}"
 
 def _next_unique_name (kind :str ,counter :int ,existing :Set [str ])->Tuple [str ,int ]:
-    """
-    Genera el siguiente nombre único (sin colisionar con 'existing')
-    y devuelve (name, next_counter).
-    """
     while True :
         name =_new_name (kind ,counter )
         counter +=1 
@@ -48,7 +36,6 @@ def _next_unique_name (kind :str ,counter :int ,existing :Set [str ])->Tuple [st
             return name ,counter 
 
 def _pick_existing (rng :random .Random ,names :List [str ])->str |None :
-    """Elige un archivo existente al azar (o None si no hay)."""
     if not names :
         return None 
     return rng .choice (names )
@@ -60,11 +47,6 @@ access_mode :str ,
 seq_cursor :int |None ,
 max_io_blocks :int ,
 )->Tuple [int ,int ,int ]:
-    """
-    Devuelve (offset, n_blocks, new_cursor). Asegura que offset+n_blocks <= size_blocks.
-    - Para 'seq', usa el cursor actual (o 0) y lo avanza.
-    - Para 'rand', elige un offset válido al azar.
-    """
     if size_blocks <=0 :
         return 0 ,0 ,seq_cursor or 0 
 
@@ -102,33 +84,6 @@ seed :int |None =None ,
 user_files :Optional [List [Dict [str ,Any ]]]=None ,
 respect_user_files_only :bool =False ,
 )->List [Dict [str ,Any ]]:
-    """
-    Genera una lista de operaciones realista para el simulador.
-
-    Requisitos del cfg (normalizado por scenario_definitions.get_config):
-      - disk_size (int), block_size (int)
-      - n_files_small (int), file_small_range (tuple[min,max])
-      - n_files_large (int), file_large_range (tuple[min,max])
-      - access_pattern: {'seq': float, 'rand': float} con suma 1.0
-      - delete_rate (0..1), ops (int)
-      - (opcional) max_io_blocks (int): límite superior de bloques por op de IO (default 8)
-
-    Parámetros nuevos:
-      - user_files: lista opcional de archivos manuales a poblar inicialmente.
-          Formato por elemento: {'name': str, 'size_blocks': int (>0)}
-      - respect_user_files_only: si True, NO se genera población inicial aleatoria
-          (n_files_small/large se ignoran). El resto del flujo (create/delete/read/write)
-          permanece igual (es decir, puede haber creates dinámicos más adelante).
-
-    Estrategia:
-      1) Población inicial:
-         - Si user_files viene: se emiten 'create' para cada archivo.
-         - Si respect_user_files_only es False: además, se crean archivos según
-           n_files_small/n_files_large.
-      2) Flujo de 'ops' operaciones: mezcla create/delete/read/write según pesos
-         derivados de delete_rate, garantizando operaciones válidas (p. ej., no leer si no hay archivos).
-      3) Para 'seq', mantiene un cursor por archivo; para 'rand', elige offset al azar.
-    """
     rng =random .Random (seed )
     ops :List [Dict [str ,Any ]]=[]
 

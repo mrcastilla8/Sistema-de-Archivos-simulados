@@ -5,10 +5,7 @@ from typing import Iterable ,List ,Sequence ,Tuple ,Optional ,Callable
 
 
 class FreeSpaceManager :
-    """
-    Gestor de espacio libre basado en un bitmap.
-    ...
-    """
+
 
 
 
@@ -40,10 +37,7 @@ class FreeSpaceManager :
 
 
     def allocate (self ,n :int ,contiguous :bool =False )->List [int ]:
-        """
-        Reserva 'n' bloques y devuelve sus índices físicos.
-        ...
-        """
+
         if n <=0 :
             raise ValueError ("n debe ser > 0")
 
@@ -77,10 +71,7 @@ class FreeSpaceManager :
         return indices 
 
     def free (self ,block_list :List [int ])->None :
-        """
-        Libera todos los bloques en 'block_list'.
-        ...
-        """
+
         if not block_list :
             return 
         self ._check_indices (block_list )
@@ -105,10 +96,7 @@ class FreeSpaceManager :
 
 
     def _find_first_fit_run (self ,needed :int )->Optional [Tuple [int ,int ]]:
-        """
-        Devuelve (start, length) del primer run contiguo libre con length >= needed,
-        o None si no existe.
-        """
+
         run_len =0 
         run_start =0 
         for i ,bit in enumerate (self .bitmap ):
@@ -145,24 +133,21 @@ class FreeSpaceManager :
 
 
     def used_count (self )->int :
-        """Bloques ocupados (bitmap=1)."""
+
         return sum (self .bitmap )
 
     def free_count (self )->int :
-        """Bloques libres (bitmap=0)."""
+
         return self .n_blocks -self .used_count ()
 
     def occupancy_pct (self )->float :
-        """Porcentaje de ocupación física (0..100)."""
+
         if self .n_blocks ==0 :
             return 0.0 
         return 100.0 *(self .used_count ()/self .n_blocks )
 
     def free_runs (self )->List [Tuple [int ,int ]]:
-        """
-        Lista de runs libres [(start, length), ...], en orden de aparición.
-        Útil para visualizar fragmentación externa.
-        """
+
         runs :List [Tuple [int ,int ]]=[]
         run_len =0 
         run_start =0 
@@ -180,17 +165,12 @@ class FreeSpaceManager :
         return runs 
 
     def largest_free_run_size (self )->int :
-        """Tamaño del mayor hueco contiguo libre."""
+
         runs =self .free_runs ()
         return 0 if not runs else max (length for _ ,length in runs )
 
     def external_fragmentation_ratio (self )->float :
-        """
-        Heurística común de fragmentación externa:
-          - Si no hay bloques libres → 0.0
-          - Si hay libres → 1 - (largest_free_run / total_free)
-            (cuanto más cerca de 1.0, más fragmentado está el espacio libre)
-        """
+
         total_free =self .free_count ()
         if total_free ==0 :
             return 0.0 
@@ -198,17 +178,14 @@ class FreeSpaceManager :
         return 1.0 -(largest /total_free )
 
     def snapshot_bitmap (self )->List [int ]:
-        """Copia superficial del bitmap (para inspección/serialización)."""
+
         return list (self .bitmap )
 
 
 
 
     def reserve_exact (self ,indices :Sequence [int ])->None :
-        """
-        Marca como usados los índices indicados (útil cuando la estrategia
-        ya decidió qué bloques usar). Falla si alguno ya estaba ocupado.
-        """
+
         self ._check_indices (indices )
 
         for i in indices :

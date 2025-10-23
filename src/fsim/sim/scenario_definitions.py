@@ -66,11 +66,6 @@ _REQUIRED_KEYS ={
 
 
 def load_from_json (path :str |Path )->Dict [str ,Dict [str ,Any ]]:
-    """
-    Carga escenarios desde un JSON opcional. El archivo debe mapear:
-      { "<scenario_name>": {<config>}, ... }
-    Si el archivo no existe, retorna {}.
-    """
     p =Path (path )
     if not p .exists ():
         return {}
@@ -86,10 +81,6 @@ def load_from_json (path :str |Path )->Dict [str ,Dict [str ,Any ]]:
 
 
 def _as_range_pair (value :Any ,field :str )->Tuple [int ,int ]:
-    """
-    Normaliza un rango ingresado como [min, max] o (min, max) a (int, int).
-    Valida que 1 <= min <= max.
-    """
     if not isinstance (value ,(list ,tuple ))or len (value )!=2 :
         raise ValueError (f"{field } debe ser una lista/tupla [min, max].")
     a ,b =value 
@@ -100,10 +91,6 @@ def _as_range_pair (value :Any ,field :str )->Tuple [int ,int ]:
     return int (a ),int (b )
 
 def _normalize_access_pattern (p :Dict [str ,Any ])->Dict [str ,float ]:
-    """
-    Normaliza access_pattern para que contenga claves 'seq' y 'rand' y sume 1.0.
-    Si faltan, se asigna 0.0. Si suma 0, se usa (1.0, 0.0) por defecto.
-    """
     seq =float (p .get ("seq",0.0 ))
     rand =float (p .get ("rand",0.0 ))
     total =seq +rand 
@@ -113,9 +100,6 @@ def _normalize_access_pattern (p :Dict [str ,Any ])->Dict [str ,float ]:
     return {"seq":seq /total ,"rand":rand /total }
 
 def _validate_schema (name :str ,cfg :Dict [str ,Any ])->None :
-    """
-    Valida tipos y rangos básicos. Lanza ValueError con mensajes claros.
-    """
     for k ,typ in _REQUIRED_KEYS .items ():
         if k not in cfg :
             raise ValueError (f"[{name }] Falta clave requerida: '{k }'")
@@ -145,11 +129,6 @@ def _validate_schema (name :str ,cfg :Dict [str ,Any ])->None :
         raise ValueError (f"[{name }] 'access_pattern' debe ser dict con claves 'seq'/'rand'.")
 
 def _normalize_config (cfg :Dict [str ,Any ])->Dict [str ,Any ]:
-    """
-    Retorna una copia normalizada del config:
-      - Rango de tamaños como tuplas (min,max)
-      - access_pattern normalizado a prob distribucional
-    """
     norm =dict (cfg )
     norm ["file_small_range"]=_as_range_pair (cfg ["file_small_range"],"file_small_range")
     norm ["file_large_range"]=_as_range_pair (cfg ["file_large_range"],"file_large_range")
@@ -161,10 +140,6 @@ def _normalize_config (cfg :Dict [str ,Any ])->Dict [str ,Any ]:
 
 
 def available_scenarios (extra_path :str |Path |None =None )->Dict [str ,str ]:
-    """
-    Devuelve {nombre: descripción} de escenarios disponibles,
-    combinando DEFAULTS con los definidos en extra_path (si existe).
-    """
     combined :Dict [str ,Dict [str ,Any ]]=dict (DEFAULTS )
     if extra_path :
         combined .update (load_from_json (extra_path ))
@@ -175,14 +150,6 @@ scenario :str |None ,
 scenarios_path :str |Path |None =None ,
 overrides :Dict [str ,Any ]|None =None ,
 )->Dict [str ,Any ]:
-    """
-    Resuelve la configuración final a usar por el runner:
-      1) Parte del escenario elegido desde DEFAULTS + JSON externo (si hay).
-      2) Aplica overrides (si vienen).
-      3) Valida y normaliza (rangos, pesos, límites).
-    Lanza KeyError si no existe el escenario indicado.
-    Lanza ValueError si hay inconsistencias de esquema o valores.
-    """
     combined :Dict [str ,Dict [str ,Any ]]=dict (DEFAULTS )
     if scenarios_path :
         combined .update (load_from_json (scenarios_path ))

@@ -13,9 +13,6 @@ PALETTE ={
 }
 
 def main ():
-    """
-    Punto de entrada principal para la aplicación de UI (opcional).
-    """
     try :
         ctk .set_appearance_mode ("dark")
 

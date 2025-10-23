@@ -79,13 +79,6 @@ user_files :Optional [List [Dict [str ,Any ]]]=None ,
 respect_user_files_only :bool =False ,
 
 )->Tuple [Dict [str ,Any ],Dict [str ,List [int ]]]:
-    """
-    Ejecuta la simulación y devuelve:
-      - summaries: dict por estrategia con métricas agregadas y, además:
-          * files_manifest: lista de archivos con estado final y contadores
-          * op_traces: lista de trazas por operación (para gráficos de UI)
-      - final_bitmaps: bitmap final por estrategia (para UI)
-    """
     if strategy_name not in STRATEGIES and strategy_name !="all":
         raise KeyError (f"Estrategia inválida: {strategy_name }")
 
