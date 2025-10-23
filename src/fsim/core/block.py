@@ -1,13 +1,13 @@
-# Owner: Dev 2
-from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Optional
 
-_ZERO = b"\x00"  # Útil para rellenar con ceros si se desea
+from __future__ import annotations 
+from dataclasses import dataclass ,field 
+from typing import Optional 
+
+_ZERO =b"\x00"
 
 
-@dataclass
-class Block:
+@dataclass 
+class Block :
     """
     Modelo de bloque lógico del 'disco' en memoria.
 
@@ -24,68 +24,68 @@ class Block:
       - Permitir inspección y operaciones sencillas en la UI (p. ej. mostrar
         si un bloque está vacío, ver bytes escritos, etc.).
     """
-    index: int
-    data: Optional[bytes] = field(default=None, repr=False)
+    index :int 
+    data :Optional [bytes ]=field (default =None ,repr =False )
 
-    # ----------------------------------------------------------------------
-    # Propiedades de conveniencia
-    # ----------------------------------------------------------------------
 
-    @property
-    def is_empty(self) -> bool:
+
+
+
+    @property 
+    def is_empty (self )->bool :
         """
         Indica si no hay datos almacenados (None o cadena vacía).
         - En esta simulación, None se usa comúnmente como "nunca escrito".
         - b"" podría entenderse como "escrito, pero vacío".
         """
-        return self.data is None or len(self.data) == 0
+        return self .data is None or len (self .data )==0 
 
-    @property
-    def size_bytes(self) -> int:
+    @property 
+    def size_bytes (self )->int :
         """
         Tamaño actual del payload en bytes (0 si no hay datos).
         """
-        return 0 if self.data is None else len(self.data)
+        return 0 if self .data is None else len (self .data )
 
-    # ----------------------------------------------------------------------
-    # Mutadores seguros (opcionales). 'Disk' no los necesita para funcionar,
-    # pero son útiles si quieres trabajar con bloques desde otras capas.
-    # ----------------------------------------------------------------------
 
-    def clear(self) -> None:
+
+
+
+
+    def clear (self )->None :
         """
         Elimina el contenido del bloque (equivalente semántico a 'no escrito').
         No lanza excepción.
         """
-        self.data = None
+        self .data =None 
 
-    def set_bytes(self, payload: Optional[bytes]) -> None:
+    def set_bytes (self ,payload :Optional [bytes ])->None :
         """
         Establece los bytes exactamente como llegan (sin validar tamaño).
         ¡OJO! La validación de tamaño debe hacerla la capa 'Disk'.
         Se ofrece para casos de uso fuera de Disk (e.g., UI o instrumentos).
         """
-        if payload is not None and not isinstance(payload, (bytes, bytearray, memoryview)):
-            raise TypeError("payload debe ser bytes-like o None")
-        # Convertimos bytearray/memoryview a bytes para mantener inmutabilidad semántica
-        self.data = None if payload is None else bytes(payload)
+        if payload is not None and not isinstance (payload ,(bytes ,bytearray ,memoryview )):
+            raise TypeError ("payload debe ser bytes-like o None")
 
-    def fill_zeros(self, block_size: int) -> None:
+        self .data =None if payload is None else bytes (payload )
+
+    def fill_zeros (self ,block_size :int )->None :
         """
         Rellena el bloque con 'block_size' bytes a cero (útil para demos/visual).
         No valida contra 'Disk'; se asume que 'block_size' es correcto.
         """
-        if block_size < 0:
-            raise ValueError("block_size debe ser >= 0")
-        self.data = _ZERO * block_size
+        if block_size <0 :
+            raise ValueError ("block_size debe ser >= 0")
+        self .data =_ZERO *block_size 
 
-    def write_partial(
-        self,
-        payload: bytes,
-        *,
-        block_size: int | None = None,
-        pad_with_zeros: bool = False,
-    ) -> None:
+    def write_partial (
+    self ,
+    payload :bytes ,
+    *,
+    block_size :int |None =None ,
+    pad_with_zeros :bool =False ,
+    )->None :
         """
         Escribe un payload parcial:
           - Si 'block_size' es None: no se valida longitud (igual que set_bytes()).
@@ -98,38 +98,38 @@ class Block:
         Útil cuando quieras simular que el bloque físico tiene tamaño fijo
         pero el contenido escrito puede ser menor (fragmentación interna visible).
         """
-        if not isinstance(payload, (bytes, bytearray, memoryview)):
-            raise TypeError("payload debe ser bytes-like")
+        if not isinstance (payload ,(bytes ,bytearray ,memoryview )):
+            raise TypeError ("payload debe ser bytes-like")
 
-        raw = bytes(payload)
+        raw =bytes (payload )
 
-        if block_size is not None:
-            if block_size < 0:
-                raise ValueError("block_size debe ser >= 0")
-            if len(raw) > block_size:
-                raise ValueError(
-                    f"payload ({len(raw)} B) excede block_size ({block_size} B)"
+        if block_size is not None :
+            if block_size <0 :
+                raise ValueError ("block_size debe ser >= 0")
+            if len (raw )>block_size :
+                raise ValueError (
+                f"payload ({len (raw )} B) excede block_size ({block_size } B)"
                 )
-            if pad_with_zeros and len(raw) < block_size:
-                raw = raw + (_ZERO * (block_size - len(raw)))
+            if pad_with_zeros and len (raw )<block_size :
+                raw =raw +(_ZERO *(block_size -len (raw )))
 
-        self.data = raw
+        self .data =raw 
 
-    # ----------------------------------------------------------------------
-    # Representación / depuración
-    # ----------------------------------------------------------------------
 
-    def __repr__(self) -> str:
+
+
+
+    def __repr__ (self )->str :
         """
         Representación compacta para logs.
         Mostrar solo un prefijo de los datos para no saturar la consola.
         """
-        preview_len = 8
-        if self.data is None:
-            d = "None"
-        else:
-            # Mostramos primeros bytes en hex para inspección rápida
-            prefix = self.data[:preview_len].hex()
-            more = "" if len(self.data) <= preview_len else "…"
-            d = f"{len(self.data)}B:{prefix}{more}"
-        return f"Block(index={self.index}, data={d})"
+        preview_len =8 
+        if self .data is None :
+            d ="None"
+        else :
+
+            prefix =self .data [:preview_len ].hex ()
+            more =""if len (self .data )<=preview_len else "…"
+            d =f"{len (self .data )}B:{prefix }{more }"
+        return f"Block(index={self .index }, data={d })"

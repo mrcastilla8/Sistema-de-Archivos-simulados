@@ -1,47 +1,47 @@
-from __future__ import annotations
+from __future__ import annotations 
 
-from abc import ABC, abstractmethod
+from abc import ABC ,abstractmethod 
 from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Protocol,
-    Tuple,
-    runtime_checkable,
+Any ,
+Callable ,
+Dict ,
+Iterable ,
+List ,
+Optional ,
+Protocol ,
+Tuple ,
+runtime_checkable ,
 )
 
 
-# =========================
-# Protocolos para evitar dependencias cíclicas con core/
-# =========================
 
-@runtime_checkable
-class DiskLike(Protocol):
+
+
+
+@runtime_checkable 
+class DiskLike (Protocol ):
     """Interfaz mínima esperada de un disco lógico."""
-    n_blocks: int
-    block_size: int
+    n_blocks :int 
+    block_size :int 
 
-    def read_block(self, i: int) -> bytes | None: ...
-    def write_block(self, i: int, data: bytes | None) -> None: ...
+    def read_block (self ,i :int )->bytes |None :...
+    def write_block (self ,i :int ,data :bytes |None )->None :...
 
 
-@runtime_checkable
-class FreeSpaceManagerLike(Protocol):
+@runtime_checkable 
+class FreeSpaceManagerLike (Protocol ):
     """Interfaz mínima esperada del gestor de espacio libre."""
-    n_blocks: int
+    n_blocks :int 
 
-    def allocate(self, n: int, contiguous: bool = False) -> List[int]: ...
-    def free(self, block_list: List[int]) -> None: ...
+    def allocate (self ,n :int ,contiguous :bool =False )->List [int ]:...
+    def free (self ,block_list :List [int ])->None :...
 
 
-# =========================
-# Clase base de Filesystem
-# =========================
 
-class FilesystemBase(ABC):
+
+
+
+class FilesystemBase (ABC ):
     """
     Contrato base para las políticas de asignación (contigua, enlazada, indexada).
 
@@ -68,45 +68,45 @@ class FilesystemBase(ABC):
         soportar crecimiento, debe documentarlo y respetar la interfaz igualmente.
     """
 
-    # -------------------------
-    # Construcción / propiedades
-    # -------------------------
 
-    def __init__(
-        self,
-        disk: DiskLike,
-        free_space_manager: FreeSpaceManagerLike,
-        *,
-        on_event: Optional[Callable[[str], None]] | Optional[Callable[[str, Any], None]] = None,
-    ) -> None:
-        # Validaciones mínimas para ayudar al desarrollo temprano
-        if not isinstance(disk, DiskLike.__constraints__ if hasattr(DiskLike, "__constraints__") else DiskLike):
-            # Nota: runtime_checkable permite usar isinstance con Protocol
-            pass  # no forzamos en runtime por compatibilidad; se asume contrato correcto
-        if not hasattr(disk, "n_blocks") or not hasattr(disk, "block_size"):
-            raise TypeError("disk debe exponer 'n_blocks' y 'block_size'")
-        if not hasattr(free_space_manager, "allocate") or not hasattr(free_space_manager, "free"):
-            raise TypeError("free_space_manager debe exponer 'allocate' y 'free'")
 
-        self.disk: DiskLike = disk
-        self.fsm: FreeSpaceManagerLike = free_space_manager
-        self.file_table: Dict[str, Dict[str, Any]] = {}  # name -> metadata específica de estrategia
-        self.on_event: Optional[Callable[..., None]] = on_event
 
-    @property
-    def n_blocks(self) -> int:
-        return self.disk.n_blocks
 
-    @property
-    def block_size(self) -> int:
-        return self.disk.block_size
+    def __init__ (
+    self ,
+    disk :DiskLike ,
+    free_space_manager :FreeSpaceManagerLike ,
+    *,
+    on_event :Optional [Callable [[str ],None ]]|Optional [Callable [[str ,Any ],None ]]=None ,
+    )->None :
 
-    # -------------------------
-    # API OBLIGATORIA (estrategias deben implementar)
-    # -------------------------
+        if not isinstance (disk ,DiskLike .__constraints__ if hasattr (DiskLike ,"__constraints__")else DiskLike ):
 
-    @abstractmethod
-    def create(self, name: str, size_blocks: int) -> None:
+            pass 
+        if not hasattr (disk ,"n_blocks")or not hasattr (disk ,"block_size"):
+            raise TypeError ("disk debe exponer 'n_blocks' y 'block_size'")
+        if not hasattr (free_space_manager ,"allocate")or not hasattr (free_space_manager ,"free"):
+            raise TypeError ("free_space_manager debe exponer 'allocate' y 'free'")
+
+        self .disk :DiskLike =disk 
+        self .fsm :FreeSpaceManagerLike =free_space_manager 
+        self .file_table :Dict [str ,Dict [str ,Any ]]={}
+        self .on_event :Optional [Callable [...,None ]]=on_event 
+
+    @property 
+    def n_blocks (self )->int :
+        return self .disk .n_blocks 
+
+    @property 
+    def block_size (self )->int :
+        return self .disk .block_size 
+
+
+
+
+
+    @abstractmethod 
+    def create (self ,name :str ,size_blocks :int )->None :
         """
         Crea un archivo lógico de 'size_blocks' bloques y reserva los bloques físicos necesarios
         según la política de asignación.
@@ -130,10 +130,10 @@ class FilesystemBase(ABC):
           - MemoryError si no hay espacio suficiente (o contiguo en contigua).
           - ValueError si 'size_blocks' es inválido.
         """
-        raise NotImplementedError
+        raise NotImplementedError 
 
-    @abstractmethod
-    def delete(self, name: str) -> None:
+    @abstractmethod 
+    def delete (self ,name :str )->None :
         """
         Elimina el archivo 'name', liberando todos sus bloques físicos (incluyendo bloque índice
         en el caso de la política indexada, si aplica) y eliminando su metadata del catálogo.
@@ -152,10 +152,10 @@ class FilesystemBase(ABC):
         Errores:
           - FileNotFoundError si 'name' no existe.
         """
-        raise NotImplementedError
+        raise NotImplementedError 
 
-    @abstractmethod
-    def read(self, name: str, offset: int, n_blocks: int, access_mode: str = "seq") -> List[bytes]:
+    @abstractmethod 
+    def read (self ,name :str ,offset :int ,n_blocks :int ,access_mode :str ="seq")->List [bytes ]:
         """
         Lee 'n_blocks' bloques lógicos a partir de 'offset' del archivo 'name' y devuelve
         una lista de payloads (bytes). No debe modificar estado, solo simular el costo.
@@ -176,16 +176,16 @@ class FilesystemBase(ABC):
         Errores:
           - FileNotFoundError, ValueError (rangos inválidos).
         """
-        raise NotImplementedError
+        raise NotImplementedError 
 
-    @abstractmethod
-    def write(
-        self,
-        name: str,
-        offset: int,
-        n_blocks: int,
-        data: Iterable[bytes] | None = None,
-    ) -> None:
+    @abstractmethod 
+    def write (
+    self ,
+    name :str ,
+    offset :int ,
+    n_blocks :int ,
+    data :Iterable [bytes ]|None =None ,
+    )->None :
         """
         Escribe 'n_blocks' a partir de 'offset' en el archivo 'name'. Puede sobrescribir bloques
         existentes. Por defecto se recomienda tamaño lógico fijo (no crecer).
@@ -206,14 +206,14 @@ class FilesystemBase(ABC):
           - FileNotFoundError, ValueError (rangos/datos).
           - MemoryError si la política permite crecer y no hay espacio (no recomendado).
         """
-        raise NotImplementedError
+        raise NotImplementedError 
 
-    # -------------------------
-    # API PROTEGIDA (utilidades comunes para estrategias)
-    # -------------------------
 
-    @abstractmethod
-    def _resolve_range(self, name: str, offset: int, n_blocks: int) -> List[int]:
+
+
+
+    @abstractmethod 
+    def _resolve_range (self ,name :str ,offset :int ,n_blocks :int )->List [int ]:
         """
         Debe ser implementado por la estrategia:
         - Devuelve la lista de índices de bloques físicos que corresponden a los bloques
@@ -224,71 +224,71 @@ class FilesystemBase(ABC):
           - FileNotFoundError si 'name' no existe.
           - ValueError si el rango es inválido o no representable por la estructura de la estrategia.
         """
-        raise NotImplementedError
+        raise NotImplementedError 
 
-    # ---- helpers de validación ----
 
-    def _assert_new_file(self, name: str) -> None:
-        if name in self.file_table:
-            raise FileExistsError(f"El archivo '{name}' ya existe")
 
-    def _assert_file_exists(self, name: str) -> None:
-        if name not in self.file_table:
-            raise FileNotFoundError(f"El archivo '{name}' no existe")
+    def _assert_new_file (self ,name :str )->None :
+        if name in self .file_table :
+            raise FileExistsError (f"El archivo '{name }' ya existe")
 
-    def _assert_positive_blocks(self, n_blocks: int) -> None:
-        if n_blocks <= 0:
-            raise ValueError("n_blocks debe ser > 0")
+    def _assert_file_exists (self ,name :str )->None :
+        if name not in self .file_table :
+            raise FileNotFoundError (f"El archivo '{name }' no existe")
 
-    def _assert_non_negative(self, offset: int) -> None:
-        if offset < 0:
-            raise ValueError("offset debe ser >= 0")
+    def _assert_positive_blocks (self ,n_blocks :int )->None :
+        if n_blocks <=0 :
+            raise ValueError ("n_blocks debe ser > 0")
 
-    def _assert_range_within_size(self, name: str, offset: int, n_blocks: int) -> None:
-        size = int(self.file_table[name].get("size_blocks", 0))
-        if offset + n_blocks > size:
-            raise ValueError(
-                f"Rango inválido: offset({offset}) + n_blocks({n_blocks}) > size_blocks({size})"
+    def _assert_non_negative (self ,offset :int )->None :
+        if offset <0 :
+            raise ValueError ("offset debe ser >= 0")
+
+    def _assert_range_within_size (self ,name :str ,offset :int ,n_blocks :int )->None :
+        size =int (self .file_table [name ].get ("size_blocks",0 ))
+        if offset +n_blocks >size :
+            raise ValueError (
+            f"Rango inválido: offset({offset }) + n_blocks({n_blocks }) > size_blocks({size })"
             )
 
-    # ---- introspección (útil para UI/runner) ----
 
-    def list_files(self) -> List[Tuple[str, int]]:
+
+    def list_files (self )->List [Tuple [str ,int ]]:
         """
         Devuelve [(name, size_blocks), ...] de todos los archivos registrados.
         No garantiza orden.
         """
-        return [(k, int(v.get("size_blocks", 0))) for k, v in self.file_table.items()]
+        return [(k ,int (v .get ("size_blocks",0 )))for k ,v in self .file_table .items ()]
 
-    def get_file_info(self, name: str) -> Dict[str, Any]:
+    def get_file_info (self ,name :str )->Dict [str ,Any ]:
         """
         Devuelve una copia superficial del metadata del archivo 'name'.
         """
-        self._assert_file_exists(name)
-        # shallow copy para evitar mutaciones externas
-        return dict(self.file_table[name])
+        self ._assert_file_exists (name )
 
-    def space_usage_summary(self) -> Dict[str, int]:
+        return dict (self .file_table [name ])
+
+    def space_usage_summary (self )->Dict [str ,int ]:
         """
         Resumen de uso de espacio (en bloques). Implementación genérica; el fsm puede
         mantener su propio contador más eficiente, pero esto estandariza la salida.
         """
-        used = 0
-        # Sin acceso directo al bitmap: aproximamos por suma de tamaños lógicos.
-        # Ojo: en políticas con overhead (p. ej. bloque índice), las estrategias deberían
-        # reflejarlo en la metadata y, si se quiere, exponer contadores más precisos.
-        for meta in self.file_table.values():
-            used += int(meta.get("size_blocks", 0))
-            used += int(meta.get("overhead_blocks", 0))  # opcional (e.g., index block)
+        used =0 
+
+
+
+        for meta in self .file_table .values ():
+            used +=int (meta .get ("size_blocks",0 ))
+            used +=int (meta .get ("overhead_blocks",0 ))
         return {
-            "total_blocks": self.n_blocks,
-            "used_blocks": used,
-            "free_blocks": max(0, self.n_blocks - used),
+        "total_blocks":self .n_blocks ,
+        "used_blocks":used ,
+        "free_blocks":max (0 ,self .n_blocks -used ),
         }
 
-    # ---- instrumentación ----
 
-    def _emit(self, event_type: str, **payload: Any) -> None:
+
+    def _emit (self ,event_type :str ,**payload :Any )->None :
         """
         Notifica un evento (create|delete|read|write|...) al 'runner' o a quien consuma
         métricas. La estrategia puede llamarlo antes/después de su operación principal.
@@ -297,9 +297,9 @@ class FilesystemBase(ABC):
             self._emit("create", name=name, size_blocks=size, allocated=idxs)
             self._emit("read", name=name, offset=offset, n_blocks=n, physical=phys_idxs)
         """
-        if self.on_event is not None:
-            try:
-                self.on_event(event_type, **payload)  # type: ignore[misc]
-            except TypeError:
-                # Compatibilidad con firmas on_event(event_type) simples
-                self.on_event(event_type)  # type: ignore[misc]
+        if self .on_event is not None :
+            try :
+                self .on_event (event_type ,**payload )
+            except TypeError :
+
+                self .on_event (event_type )
