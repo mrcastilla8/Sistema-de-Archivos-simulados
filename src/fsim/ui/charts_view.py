@@ -8,6 +8,44 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import numpy as np # For calculations like moving average
 
+class SpanishNavigationToolbar(NavigationToolbar2Tk):
+    """NavigationToolbar con tooltips y mensajes en español."""
+    
+    toolitems = (
+        ('Home', 'Resetear vista original', 'home', 'home'),
+        ('Back', 'Volver a vista previa', 'back', 'back'),
+        ('Forward', 'Siguiente vista', 'forward', 'forward'),
+        (None, None, None, None),
+        ('Pan', 'Mover arrastrando', 'move', 'pan'),
+        ('Zoom', 'Zoom a región', 'zoom_to_rect', 'zoom'),
+        ('Subplots', 'Configurar subplots', 'subplots', 'configure_subplots'),
+        (None, None, None, None),
+        ('Save', 'Guardar figura', 'filesave', 'save_figure'),
+    )
+
+    def set_message(self, msg):
+        """Traduce los mensajes de estado comunes."""
+        translations = {
+            'Mouse position: ': 'Posición del mouse: ',
+            'Navigation: ': 'Navegación: ',
+            'Left button: ': 'Botón izquierdo: ',
+            'Right button: ': 'Botón derecho: ',
+            'Middle button: ': 'Botón central: ',
+            'Pan axes': 'Mover ejes',
+            'Zoom to rectangle': 'Zoom a rectángulo',
+            'Press left button to zoom': 'Click izquierdo para hacer zoom',
+            'Reset original view': 'Restaurar vista original',
+            'Save the figure': 'Guardar la figura',
+            'Configure subplots': 'Configurar subplots'
+        }
+        
+        for en, es in translations.items():
+            if msg.startswith(en):
+                msg = msg.replace(en, es)
+                break
+        
+        super().set_message(msg)
+
 STRATEGY_NAMES_ES = {
     "contiguous": "Asignación Contigua",
     "linked": "Asignación Enlazada",
@@ -135,10 +173,26 @@ class ChartsView(ctk.CTkFrame):
             self._create_placeholder_tab("No hay datos de traza para esta estrategia.")
             return
 
-        plot_keys = list(TIMESERIES_PLOTS.keys()) + ["cumulative_seeks", "throughput", "latency_vs_throughput"]
+        plot_keys = [
+            "access_time_ms",  # Keep as is since it's used in calculations
+            "external_frag_pct",  # Keep as is since it's used in calculations
+            "space_usage_pct",  # Keep as is since it's used in calculations
+            "cumulative_seeks",  # Keep as is since it's used in calculations
+            "throughput",  # Keep as is since it's used in calculations
+            "latency_vs_throughput"  # Keep as is since it's used in calculations
+        ]
 
         for key in plot_keys:
-            tab_name = key.replace("_", " ").title()
+            # Translate tab names to Spanish
+            tab_name = {
+                "access_time_ms": "Tiempo de Acceso",
+                "external_frag_pct": "Fragmentación Externa",
+                "space_usage_pct": "Uso de Espacio",
+                "cumulative_seeks": "Búsquedas Acumuladas",
+                "throughput": "Throughput",  # Common technical term, keep in English
+                "latency_vs_throughput": "Latencia vs Throughput"  # Partial translation as throughput is a technical term
+            }.get(key, key.replace("_", " ").title())
+            
             try:
                 tab = self.tab_view.add(tab_name)
                 tab.grid_columnconfigure(0, weight=1); tab.grid_rowconfigure(0, weight=1)
@@ -160,8 +214,8 @@ class ChartsView(ctk.CTkFrame):
 
                 toolbar_frame = ctk.CTkFrame(tab, fg_color="transparent")
                 toolbar_frame.pack(side=tk.BOTTOM, fill=tk.X)
-                toolbar = NavigationToolbar2Tk(canvas, toolbar_frame, pack_toolbar=False)
-
+                toolbar = SpanishNavigationToolbar(canvas, toolbar_frame, pack_toolbar=False)  # Usar versión en español
+                
                 # --- MODIFICADO: Estilo correcto para tk widgets ---
                 toolbar.configure(background=self.palette["frame_bg"]) # Configurar el frame de la toolbar
                 # Estilo para la etiqueta de mensajes (si existe)
