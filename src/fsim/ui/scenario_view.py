@@ -147,6 +147,30 @@ class ScenarioView (ctk .CTkFrame ):
         self .seed_frame =ctk .CTkFrame (config_frame ,fg_color ="transparent")
         self .seed_entry =ctk .CTkEntry (self .seed_frame ,placeholder_text ="Vacío para aleatorio",**self .entry_style )
         self .seed_entry .pack (fill ="x",expand =True )
+        
+        def validate_seed(event=None):
+            value = self.seed_entry.get().strip()
+            if not value:  # Valor vacío es válido (seed aleatorio)
+                self.seed_entry.configure(border_color=self.palette["button"])
+                self.status_label.configure(text="", text_color=self.palette["text_light"])
+                return
+            
+            try:
+                seed = int(value)
+                if seed < 0:
+                    self.seed_entry.configure(border_color="#FF5555")
+                    self.status_label.configure(text="La semilla debe ser un número positivo", text_color="#FF5555")
+                elif seed > 2147483647:  # Máximo valor para evitar desbordamiento
+                    self.seed_entry.configure(border_color="#FF5555")
+                    self.status_label.configure(text="La semilla es demasiado grande", text_color="#FF5555")
+                else:
+                    self.seed_entry.configure(border_color=self.palette["button"])
+                    self.status_label.configure(text="", text_color=self.palette["text_light"])
+            except ValueError:
+                self.seed_entry.configure(border_color="#FF5555")
+                self.status_label.configure(text="La semilla debe ser un número entero", text_color="#FF5555")
+        
+        self.seed_entry.bind("<KeyRelease>", validate_seed)
 
 
         self .manual_frame =ctk .CTkFrame (config_frame ,fg_color ="transparent")
@@ -231,6 +255,30 @@ class ScenarioView (ctk .CTkFrame ):
             self .manual_frame .grid (row =row_to_use ,column =0 ,columnspan =2 ,sticky ="ew",pady =5 )
 
 
+    def _validate_filename(self, filename: str) -> tuple[bool, str]:
+        if not filename:
+            return False, "El nombre del archivo no puede estar vacío"
+        if len(filename) > 255:
+            return False, "El nombre del archivo es demasiado largo (máx. 255 caracteres)"
+        # Caracteres no permitidos en nombres de archivo
+        invalid_chars = '<>:"/\\|?*'
+        if any(char in filename for char in invalid_chars):
+            return False, f"El nombre contiene caracteres no válidos: {invalid_chars}"
+        return True, ""
+
+    def _validate_size(self, size_str: str) -> tuple[bool, str]:
+        if not size_str:
+            return False, "El tamaño no puede estar vacío"
+        try:
+            size = int(size_str)
+            if size <= 0:
+                return False, "El tamaño debe ser mayor que 0"
+            if size > 1000000:  # Límite arbitrario para evitar valores excesivos
+                return False, "El tamaño es demasiado grande (máx. 1.000.000 bloques)"
+            return True, ""
+        except ValueError:
+            return False, "El tamaño debe ser un número entero"
+
     def _add_file_row (self ,name :str ="",size :Any =""):
         row_frame =ctk .CTkFrame (self .file_list_frame ,fg_color ="transparent")
         row_frame .pack (fill ="x",pady =2 )
@@ -245,6 +293,31 @@ class ScenarioView (ctk .CTkFrame ):
         size_entry =ctk .CTkEntry (row_frame ,**self .entry_style )
         size_entry .insert (0 ,str (size ))
         size_entry .grid (row =0 ,column =1 ,sticky ="ew",padx =5 )
+        
+        # Validar en tiempo real el nombre del archivo
+        def validate_name_entry(event=None):
+            value = name_entry.get().strip()
+            valid, msg = self._validate_filename(value)
+            if not valid:
+                name_entry.configure(border_color="#FF5555")
+                self.status_label.configure(text=msg, text_color="#FF5555")
+            else:
+                name_entry.configure(border_color=self.palette["button"])
+                self.status_label.configure(text="", text_color=self.palette["text_light"])
+            
+        # Validar en tiempo real el tamaño
+        def validate_size_entry(event=None):
+            value = size_entry.get().strip()
+            valid, msg = self._validate_size(value)
+            if not valid:
+                size_entry.configure(border_color="#FF5555")
+                self.status_label.configure(text=msg, text_color="#FF5555")
+            else:
+                size_entry.configure(border_color=self.palette["button"])
+                self.status_label.configure(text="", text_color=self.palette["text_light"])
+
+        name_entry.bind("<KeyRelease>", validate_name_entry)
+        size_entry.bind("<KeyRelease>", validate_size_entry)
 
         remove_btn =ctk .CTkButton (
         row_frame ,text ="X",width =28 ,height =28 ,
@@ -307,51 +380,134 @@ class ScenarioView (ctk .CTkFrame ):
             self .status_label .configure (text =f"Error al importar: {e }",text_color ="#FF5555")
 
     def _collect_manual_files (self )->Optional [List [Dict [str ,Any ]]]:
-        user_files =[]
-        for i ,(row_frame ,name_entry ,size_entry )in enumerate (self .manual_file_rows ):
-            name =name_entry .get ().strip ()
-            size_str =size_entry .get ().strip ()
-            if not name or not size_str :
-                self .status_label .configure (text =f"Error: Fila {i +1 } está incompleta.",text_color ="#FF5555")
-                return None 
-            try :
-                size =int (size_str )
-                if size <=0 :
-                    raise ValueError ()
-                user_files .append ({"name":name ,"size_blocks":size })
-            except ValueError :
-                self .status_label .configure (text =f"Error: Fila {i +1 }, el tamaño '{size_str }' debe ser un número > 0.",text_color ="#FF5555")
-                return None 
-        return user_files 
+        user_files = []
+        seen_names = set()
+        total_blocks = 0
+        
+        if not self.manual_file_rows:
+            self.status_label.configure(text="Error: Debe agregar al menos un archivo.", text_color="#FF5555")
+            return None
+        
+        for i, (row_frame, name_entry, size_entry) in enumerate(self.manual_file_rows):
+            name = name_entry.get().strip()
+            size_str = size_entry.get().strip()
+            
+            # Validar el nombre
+            valid_name, name_msg = self._validate_filename(name)
+            if not valid_name:
+                self.status_label.configure(text=f"Error en fila {i + 1}: {name_msg}", text_color="#FF5555")
+                return None
+            
+            # Verificar duplicados
+            if name in seen_names:
+                self.status_label.configure(text=f"Error en fila {i + 1}: El nombre '{name}' está duplicado.", text_color="#FF5555")
+                return None
+            seen_names.add(name)
+            
+            # Validar el tamaño
+            valid_size, size_msg = self._validate_size(size_str)
+            if not valid_size:
+                self.status_label.configure(text=f"Error en fila {i + 1}: {size_msg}", text_color="#FF5555")
+                return None
+            
+            size = int(size_str)
+            total_blocks += size
+            
+            # Validar el tamaño total (opcional, ajustar según necesidades)
+            if total_blocks > 10000000:  # 10 millones de bloques como límite
+                self.status_label.configure(
+                    text="Error: El tamaño total de los archivos excede el límite permitido.",
+                    text_color="#FF5555"
+                )
+                return None
+            
+            user_files.append({"name": name, "size_blocks": size})
+        
+        return user_files
 
 
-    def _start_simulation (self ):
-        self .run_button .configure (state ="disabled",text ="Ejecutando...")
-        self .status_label .configure (text ="Iniciando simulación...",text_color =self .palette ["text_light"])
-        if self .on_run_start :
-            self .on_run_start ()
-        strategy_display =self .strategy_var .get ()
-        scenario_display =self .scenario_var .get ()
-        strategy_key =STRATEGY_MAP_EN .get (strategy_display )
-        scenario_key =SCENARIO_MAP_EN .get (scenario_display )
-        if strategy_key is None or scenario_key is None :
-            self .after (0 ,self ._simulation_error ,Exception (f"Clave no encontrada para '{strategy_display }' o '{scenario_display }'"))
-            return 
-        slowdown_val =5 if self .slow_mo_var .get ()else 0 
-        mode =self .workload_mode_var .get ()
-        user_files_list :Optional [List [Dict [str ,Any ]]]=None 
-        respect_only_flag :bool =False 
-        seed_val :Optional [int ]=None 
-        if mode =="Manual (Lista)":
-            user_files_list =self ._collect_manual_files ()
-            if user_files_list is None :
-                self .run_button .configure (state ="normal",text ="Ejecutar Simulación")
-                return 
-            respect_only_flag =self .respect_only_var .get ()
-        else :
-            seed_str =self .seed_entry .get ().strip ()
-            if seed_str .isdigit ():
-                seed_val =int (seed_str )
+    def _disable_ui(self):
+        # Deshabilitar controles durante la simulación
+        self.strategy_menu.configure(state="disabled")
+        self.scenario_menu.configure(state="disabled")
+        self.slow_mo_check.configure(state="disabled")
+        self.workload_mode_toggle.configure(state="disabled")
+        self.run_button.configure(state="disabled", text="Ejecutando...")
+        if hasattr(self, "add_file_button"):
+            self.add_file_button.configure(state="disabled")
+        if hasattr(self, "import_button"):
+            self.import_button.configure(state="disabled")
+
+    def _enable_ui(self):
+        # Rehabilitar controles después de la simulación
+        self.strategy_menu.configure(state="normal")
+        self.scenario_menu.configure(state="normal")
+        self.slow_mo_check.configure(state="normal")
+        self.workload_mode_toggle.configure(state="normal")
+        self.run_button.configure(state="normal", text="Ejecutar Simulación")
+        if hasattr(self, "add_file_button"):
+            self.add_file_button.configure(state="normal")
+        if hasattr(self, "import_button"):
+            self.import_button.configure(state="normal")
+
+    def _start_simulation(self):
+        try:
+            self._disable_ui()
+            self.status_label.configure(text="Iniciando simulación...", text_color=self.palette["text_light"])
+            
+            if self.on_run_start:
+                self.on_run_start()
+                
+            strategy_display = self.strategy_var.get()
+            scenario_display = self.scenario_var.get()
+            strategy_key = STRATEGY_MAP_EN.get(strategy_display)
+            scenario_key = SCENARIO_MAP_EN.get(scenario_display)
+            
+            if strategy_key is None or scenario_key is None:
+                raise ValueError(f"Estrategia o escenario no válido: '{strategy_display}' o '{scenario_display}'")
+            
+            slowdown_val = 5 if self.slow_mo_var.get() else 0
+            mode = self.workload_mode_var.get()
+            user_files_list: Optional[List[Dict[str, Any]]] = None
+            respect_only_flag: bool = False
+            seed_val: Optional[int] = None
+            
+            if mode == "Manual (Lista)":
+                user_files_list = self._collect_manual_files()
+                if user_files_list is None:
+                    raise ValueError("Error en la configuración de archivos manuales")
+                respect_only_flag = self.respect_only_var.get()
+            else:
+                # Modo aleatorio - validar semilla
+                seed_str = self.seed_entry.get().strip()
+                if seed_str:  # Solo validar si no está vacío
+                    try:
+                        seed_val = int(seed_str)
+                        if seed_val < 0:
+                            raise ValueError("La semilla debe ser un número positivo")
+                        if seed_val > 2147483647:
+                            raise ValueError("La semilla es demasiado grande")
+                    except ValueError as e:
+                        raise ValueError(f"Error en la semilla: {str(e)}")
+            
+            # Iniciar simulación en un hilo separado
+            thread = threading.Thread(
+                target=self._run_simulation_thread,
+                args=(
+                    strategy_key,
+                    scenario_key,
+                    slowdown_val,
+                    user_files_list,
+                    respect_only_flag,
+                    seed_val
+                ),
+                daemon=True
+            )
+            thread.start()
+            
+        except Exception as e:
+            self.status_label.configure(text=f"Error: {str(e)}", text_color="#FF5555")
+            self._enable_ui()
         thread =threading .Thread (
         target =self ._run_simulation_thread ,
         args =(

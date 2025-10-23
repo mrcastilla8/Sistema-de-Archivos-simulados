@@ -109,28 +109,29 @@ bitmaps :Dict [str ,List [int ]]
 
 
 
-def _capture_manual_files_interactive ()->Optional [List [Dict [str ,Any ]]]:
-    clear_screen ()
-    print_header ("Ingreso Interactivo de Archivos")
-    user_files =[]
+def _capture_manual_files_interactive() -> Optional[List[Dict[str, Any]]]:
+    clear_screen()
+    print_header("Ingreso Interactivo de Archivos")
+    user_files = []
 
-    while True :
-        name =input (f"  Nombre del archivo (deja vacio para terminar): ").strip ()
-        if not name :
-            break 
+    while True:
+        name = input(f"  Nombre del archivo (deja vacio para terminar): ").strip()
+        if not name:
+            break
 
-        size_str =input (f"  Tamano en bloques para '{name }': ").strip ()
-        try :
-            size_blocks =int (size_str )
-            if size_blocks <=0 :
-                print_error ("El tamano debe ser un entero mayor a 0.")
-                continue 
-
-            user_files .append ({"name":name ,"size_blocks":size_blocks })
-            print_success (f"Archivo '{name }' (tam: {size_blocks }) agregado.")
-
-        except ValueError :
-            print_error ("Entrada invalida. El tamano debe ser un numero.")
+        while True:
+            size_str = input(f"  Tamano en bloques para '{name}': ").strip()
+            try:
+                size_blocks = int(size_str)
+                if size_blocks <= 0:
+                    print_error("El tamaño debe ser mayor a 0")
+                    continue
+                    
+                user_files.append({"name": name, "size_blocks": size_blocks})
+                print_success(f"Archivo '{name}' (tam: {size_blocks}) agregado.")
+                break
+            except ValueError:
+                print_error("Entrada invalida. El tamano debe ser un numero.")
 
     return user_files if user_files else None 
 
@@ -248,8 +249,22 @@ def _configure_workload ()->Optional [Tuple [Optional [List [Dict [str ,Any ]]],
         return None 
 
 
-    seed_str =input ("\nIntroduce una 'seed' (semilla) numerica (ej. 42, o deja vacio para aleatorio): ")
-    seed =int (seed_str )if seed_str .isdigit ()else None 
+    while True:
+        seed_str = input("\nIntroduce una 'seed' (semilla) numerica (ej. 42, o deja vacio para aleatorio): ").strip()
+        if not seed_str:
+            seed = None
+            break
+            
+        if not seed_str.isdigit():
+            print_error("La semilla debe ser un número entero positivo")
+            continue
+            
+        seed = int(seed_str)
+        if seed < 0:
+            print_error("La semilla debe ser un número positivo")
+            continue
+            
+        break
 
     return user_files ,respect_user_files_only ,seed 
 
@@ -290,12 +305,19 @@ def do_run_simulation ():
     for i ,s in enumerate (strat_list ):
         spanish_name =STRATEGY_NAMES_ES .get (s ,s )
         print (f"  {i +1 }) {s } ({spanish_name })")
-    try :
-        choice =int (input ("Elige una estrategia (numero): "))-1 
-        strategy_name =strat_list [choice ]
-    except (ValueError ,IndexError ):
-        print_error ("Seleccion invalida.")
-        return 
+    while True:
+        choice = input("Elige una estrategia (numero): ").strip()
+        if not choice.isdigit():
+            print_error("Por favor ingresa un número válido")
+            continue
+            
+        choice_idx = int(choice) - 1
+        if choice_idx < 0 or choice_idx >= len(strat_list):
+            print_error(f"Por favor ingresa un número entre 1 y {len(strat_list)}")
+            continue
+            
+        strategy_name = strat_list[choice_idx]
+        break
 
 
     print ("\nEscenarios disponibles:")
@@ -308,12 +330,19 @@ def do_run_simulation ():
     for i ,s in enumerate (scen_list ):
         spanish_name =SCENARIO_NAMES_ES .get (s ,s )
         print (f"  {i +1 }) {s } ({spanish_name })")
-    try :
-        choice =int (input ("Elige un escenario (numero): "))-1 
-        scenario =scen_list [choice ]
-    except (ValueError ,IndexError ):
-        print_error ("Seleccion invalida.")
-        return 
+    while True:
+        choice = input("Elige un escenario (numero): ").strip()
+        if not choice.isdigit():
+            print_error("Por favor ingresa un número válido")
+            continue
+            
+        choice_idx = int(choice) - 1
+        if choice_idx < 0 or choice_idx >= len(scen_list):
+            print_error(f"Por favor ingresa un número entre 1 y {len(scen_list)}")
+            continue
+            
+        scenario = scen_list[choice_idx]
+        break
 
 
     workload_config =_configure_workload ()
