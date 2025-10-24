@@ -1,83 +1,156 @@
 # filesystem-sim
 
 Simulador de **Sistemas de Archivos** que implementa y compara tres estrategias de asignación:
-- Asignación Contigua
-- Asignación Enlazada 
-- Asignación Indexada
+- **Asignación Contigua**: Bloques contiguos en disco para acceso secuencial óptimo
+- **Asignación Enlazada**: Bloques enlazados con punteros para flexibilidad
+- **Asignación Indexada**: Bloques indexados para acceso aleatorio eficiente
 
 ## Características
 
 ### Interfaces
-- **CLI Interactiva**: Menú con 5 opciones principales
-  - Listar estrategias disponibles
-  - Listar escenarios de prueba
-  - Ejecutar simulación única
-  - Ejecutar barrido (todas las estrategias)
-  - Salir
+- **CLI Interactiva**: Interfaz en línea de comandos con:
+  - Listado y selección de estrategias
+  - Configuración de escenarios de prueba
+  - Ejecución de simulaciones individuales y comparativas
+  - Visualización de resultados y métricas
 
-- **UI Gráfica** (opcional):
-  - Visualización en tiempo real del bitmap del disco
-  - Resultados detallados con métricas por estrategia
-  - Modo "demo" para visualización lenta
+- **UI Gráfica** (Implementada con customtkinter):
+  - Visualización interactiva del estado del disco
+  - Monitoreo en tiempo real de operaciones
+  - Análisis gráfico de métricas y resultados
+  - Vista detallada de la fragmentación
 
 ### Métricas Implementadas
-- Tiempo promedio de acceso (ms)
-- Uso de espacio (%)
-- Fragmentación externa/interna (%)
-- Throughput (ops/seg)
-- Estimación de seeks
-- Tiempo total de simulación
-- CPU usage
-- Fairness index
+- **Rendimiento**:
+  - Tiempo promedio de acceso (ms)
+  - Throughput (operaciones/seg)
+  - Estimación de seeks y movimientos de cabeza
+  - Tiempo total de operación
+
+- **Utilización**:
+  - Uso efectivo del espacio (%)
+  - Fragmentación interna y externa (%)
+  - Overhead por metadatos
+  - Índice de equidad (fairness)
+
+- **Recursos**:
+  - Uso de CPU (%)
+  - Memoria utilizada
+  - Hit/Miss ratio
+  - Tiempo de CPU total
 
 ### Escenarios Predefinidos
-- **mix-small-large**: Mezcla de archivos pequeños y grandes (60% seq / 40% rand)
-- **seq-vs-rand**: Comparativa acceso secuencial vs aleatorio
-- **frag-intensive**: Creación/borrado intensivo para fragmentación
+- **mix-small-large**:
+  - Mezcla realista de archivos (200 pequeños, 30 grandes)
+  - Patrón 60% secuencial / 40% aleatorio
+  - 10% tasa de borrado
+  - 1000 operaciones
 
-## Requisitos
+- **seq-vs-rand**:
+  - Enfoque en patrones de acceso
+  - 90% accesos secuenciales vs aleatorios
+  - 150 archivos pequeños, 20 grandes
+  - 5% tasa de borrado
 
-### Mínimos
-- Python 3.10+
+- **frag-intensive**:
+  - Prueba de fragmentación intensiva
+  - 40% tasa de borrado
+  - 250 archivos pequeños, 10 grandes
+  - 1500 operaciones
 
-### Opcionales (UI)
-- `customtkinter`
-- `pandas` 
-- `matplotlib`
+## Requisitos e Instalación
+
+### Requisitos Base
+- Python 3.10 o superior
+- pip (gestor de paquetes de Python)
+
+### Dependencias Principales
+```bash
+pip install -r requirements.txt
+```
+
+### Dependencias Opcionales (UI)
+```bash
+pip install customtkinter pandas matplotlib
+```
 
 ## Uso
 
 ### CLI Interactiva
 ```bash
+# Ejecutar simulación interactiva
 python -m src.fsim
+
+# Ejecutar escenario específico
+python -m src.fsim --scenario seq-vs-rand
+
+# Comparar todas las estrategias
+python -m src.fsim --compare-all
 ```
 
 ### UI Gráfica
 ```bash
+# Iniciar interfaz gráfica
 python -m src.fsim.ui.app
 ```
 
-## Estructura de Archivos
+## Estructura del Proyecto
 ```
 src/fsim/
-  ├── core/           # Abstracciones base (Block, Disk, FilesystemBase)
-  ├── fs_strategies/  # Implementaciones de las 3 estrategias
-  ├── sim/           # Motor de simulación y métricas
-  ├── cli/           # Interfaz de línea de comandos
-  └── ui/            # Interfaz gráfica (opcional)
+  ├── core/              # Núcleo del sistema
+  │   ├── block.py      # Gestión de bloques
+  │   ├── disk.py       # Simulación de disco
+  │   └── filesystem_base.py  # Clase base abstracta
+  │
+  ├── fs_strategies/    # Implementaciones
+  │   ├── contiguous.py  # Asignación contigua
+  │   ├── linked.py      # Asignación enlazada
+  │   └── indexed.py     # Asignación indexada
+  │
+  ├── sim/              # Motor de simulación
+  │   ├── metrics.py     # Cálculo de métricas
+  │   ├── runner.py      # Ejecución de pruebas
+  │   └── workload_generators.py  # Generadores
+  │
+  ├── cli/              # Interfaz de comandos
+  └── ui/               # Interfaz gráfica
+      ├── app.py        # Aplicación principal
+      ├── disk_view.py  # Vista del disco
+      └── charts_view.py # Gráficas y métricas
 ```
 
-## Salida de Resultados
-Los resultados se guardan en el directorio `results/` en formato JSON o CSV, incluyendo:
+## Resultados y Análisis
+Los resultados se almacenan en formato JSON en el directorio `results/`:
+
+```json
+{
+  "estrategia": {
+    "avg_access_time_ms": 0.088,
+    "space_usage_pct": 47.05,
+    "fragmentation_internal_pct": 0.0,
+    "fragmentation_external_pct": 6.53,
+    "throughput_ops_per_sec": 451.66,
+    ...
+  }
+}
+```
+
+### Métricas Disponibles
 - Métricas detalladas por estrategia
-- Estado final del bitmap
-- Tiempos de operación
+- Análisis temporal de operaciones
 - Estadísticas de fragmentación
+- Perfiles de rendimiento
 
-## Documentación
-El diseño y resultados experimentales se documentan en `docs/acl_paper/`.
+## Detalles de Implementación
 
-## Notas de Implementación
-- Todas las estrategias están completamente implementadas y funcionales
-- El sistema incluye detección de corrupción y validaciones
-- Soporte para instrumentación y eventos para métricas detalladas
+### Características Avanzadas
+- Detección y manejo de corrupción de datos
+- Validación de operaciones y límites
+- Eventos instrumentados para métricas
+- Soporte para patrones de acceso personalizados
+
+### Optimizaciones
+- Gestión eficiente de espacio libre
+- Caché de metadatos
+- Operaciones batch para mejor rendimiento
+- Detección de fragmentación en tiempo real
